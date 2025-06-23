@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Obsidian MCP Workflow Configuration",
+  "description": "Schema for semantic workflow hints and tool chaining",
+  "type": "object",
+  "required": ["version", "operations"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string"
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/operation"
+      }
+    },
+    "efficiency_rules": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/efficiency_rule"
+      }
+    },
+    "context_triggers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Regex pattern for context detection"
+      }
+    }
+  },
+  "definitions": {
+    "operation": {
+      "type": "object",
+      "required": ["description", "actions"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "actions": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/action"
+          }
+        }
+      }
+    },
+    "action": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "parameters": {
+          "$ref": "#/definitions/parameters"
+        },
+        "success_hints": {
+          "$ref": "#/definitions/hints"
+        },
+        "failure_hints": {
+          "$ref": "#/definitions/hints"
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "hints": {
+      "type": "object",
+      "required": ["message", "suggested_next"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "Template string with {variable} placeholders"
+        },
+        "suggested_next": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/conditional_suggestions"
+          }
+        }
+      }
+    },
+    "conditional_suggestions": {
+      "type": "object",
+      "required": ["condition", "suggestions"],
+      "properties": {
+        "condition": {
+          "type": "string",
+          "description": "Condition name or 'always'"
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/suggestion"
+          }
+        }
+      }
+    },
+    "suggestion": {
+      "type": "object",
+      "required": ["description", "command"],
+      "properties": {
+        "description": {
+          "type": "string"
+        },
+        "command": {
+          "type": "string",
+          "description": "Template string for the command"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this action is suggested"
+        },
+        "requires_tokens": {
+          "type": "string",
+          "description": "Token condition that must be true for this suggestion"
+        }
+      }
+    },
+    "efficiency_rule": {
+      "type": "object",
+      "required": ["pattern", "hint"],
+      "properties": {
+        "pattern": {
+          "type": "string"
+        },
+        "hint": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

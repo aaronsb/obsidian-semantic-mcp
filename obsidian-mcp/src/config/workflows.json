@@ -1,0 +1,328 @@
+{
+  "$schema": "./workflow-schema.json",
+  "version": "1.0.0",
+  "description": "Semantic workflow configuration for Obsidian MCP",
+  
+  "operations": {
+    "vault": {
+      "description": "File and folder operations in the vault",
+      "actions": {
+        "list": {
+          "description": "List files in a directory",
+          "success_hints": {
+            "message": "Listed {count} files in {path}",
+            "suggested_next": [
+              {
+                "condition": "has_markdown_files",
+                "suggestions": [
+                  {
+                    "description": "Read a specific file",
+                    "command": "vault(action='read', path='<filename>')",
+                    "reason": "View file contents",
+                    "requires_tokens": "can_navigate_directory"
+                  },
+                  {
+                    "description": "Search within this directory",
+                    "command": "vault(action='search', query='<term>', path='{path}')",
+                    "reason": "Find specific content"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        
+        "read": {
+          "description": "Read file contents",
+          "success_hints": {
+            "message": "Read file: {path}",
+            "suggested_next": [
+              {
+                "condition": "has_links",
+                "suggestions": [
+                  {
+                    "description": "Follow linked notes",
+                    "command": "vault(action='read', path='{linked_file}')",
+                    "reason": "Explore connected knowledge",
+                    "requires_tokens": "can_follow_links"
+                  }
+                ]
+              },
+              {
+                "condition": "has_tags",
+                "suggestions": [
+                  {
+                    "description": "Find notes with similar tags",
+                    "command": "vault(action='search', query='{tags}')",
+                    "reason": "Discover related content"
+                  }
+                ]
+              },
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "Edit this file",
+                    "command": "edit(action='window', path='{path}', ...)",
+                    "reason": "Make changes to content"
+                  },
+                  {
+                    "description": "Open in Obsidian",
+                    "command": "view(action='open_in_obsidian', path='{path}')",
+                    "reason": "Use Obsidian's full features"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        
+        "create": {
+          "description": "Create a new file",
+          "success_hints": {
+            "message": "Created file: {path}",
+            "suggested_next": [
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "Add content to the file",
+                    "command": "edit(action='append', path='{path}', content='...')",
+                    "reason": "Start writing"
+                  },
+                  {
+                    "description": "Open in Obsidian for editing",
+                    "command": "view(action='open_in_obsidian', path='{path}')",
+                    "reason": "Use visual editor"
+                  },
+                  {
+                    "description": "Link from another note",
+                    "command": "edit(action='window', path='<other_note>', newText='[[{filename}]]')",
+                    "reason": "Connect knowledge"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        
+        "search": {
+          "description": "Search vault contents",
+          "success_hints": {
+            "message": "Found {count} matches for '{query}'",
+            "suggested_next": [
+              {
+                "condition": "has_results",
+                "suggestions": [
+                  {
+                    "description": "Read a specific result",
+                    "command": "vault(action='read', path='{result_path}')",
+                    "reason": "Examine full content"
+                  },
+                  {
+                    "description": "Refine search",
+                    "command": "vault(action='search', query='{query} AND <additional_term>')",
+                    "reason": "Narrow results"
+                  },
+                  {
+                    "description": "Create synthesis note",
+                    "command": "vault(action='create', path='synthesis/{query}-summary.md')",
+                    "reason": "Consolidate findings"
+                  }
+                ]
+              },
+              {
+                "condition": "no_results",
+                "suggestions": [
+                  {
+                    "description": "Try broader search",
+                    "command": "vault(action='search', query='{simplified_query}')",
+                    "reason": "Expand search scope"
+                  },
+                  {
+                    "description": "Create note on this topic",
+                    "command": "vault(action='create', path='{suggested_path}')",
+                    "reason": "Start new knowledge"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    
+    "edit": {
+      "description": "Smart editing operations",
+      "actions": {
+        "window": {
+          "description": "Edit with fuzzy matching",
+          "success_hints": {
+            "message": "Replaced text at line {line}",
+            "suggested_next": [
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "Continue editing this file",
+                    "command": "edit(action='window', path='{path}', ...)",
+                    "reason": "Make more changes"
+                  },
+                  {
+                    "description": "View changes in context",
+                    "command": "view(action='window', path='{path}', line={line})",
+                    "reason": "Verify edit"
+                  },
+                  {
+                    "description": "Search for similar patterns",
+                    "command": "vault(action='search', query='{old_text}')",
+                    "reason": "Find other occurrences"
+                  }
+                ]
+              }
+            ]
+          },
+          "failure_hints": {
+            "message": "No match found - content buffered",
+            "suggested_next": [
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "View file to locate text",
+                    "command": "view(action='window', path='{path}', searchText='{search_text}')",
+                    "reason": "Find correct location"
+                  },
+                  {
+                    "description": "Use buffered content at line",
+                    "command": "edit(action='at_line', path='{path}', line=<NUMBER>)",
+                    "reason": "Content already saved",
+                    "requires_tokens": "can_use_buffer"
+                  },
+                  {
+                    "description": "Try with lower threshold",
+                    "command": "edit(action='window', path='{path}', oldText='{old_text}', fuzzyThreshold=0.5)",
+                    "reason": "Find approximate matches"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        
+        "append": {
+          "description": "Add content to end of file",
+          "success_hints": {
+            "message": "Appended content to {path}",
+            "suggested_next": [
+              {
+                "condition": "is_daily_note",
+                "suggestions": [
+                  {
+                    "description": "Add timestamp",
+                    "command": "edit(action='append', path='{path}', content='\\n## {time}\\n')",
+                    "reason": "Track time entries"
+                  }
+                ]
+              },
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "View the updated file",
+                    "command": "view(action='file', path='{path}')",
+                    "reason": "See full content"
+                  },
+                  {
+                    "description": "Continue adding content",
+                    "command": "edit(action='append', path='{path}', content='...')",
+                    "reason": "Add more information"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    
+    "view": {
+      "description": "Content viewing and navigation",
+      "actions": {
+        "window": {
+          "description": "View file portion with context",
+          "success_hints": {
+            "message": "Viewing lines {start}-{end} of {path}",
+            "suggested_next": [
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "Edit this section",
+                    "command": "edit(action='window', path='{path}', oldText='...')",
+                    "reason": "Make changes"
+                  },
+                  {
+                    "description": "View more context",
+                    "command": "view(action='window', path='{path}', line={line}, windowSize=50)",
+                    "reason": "See surrounding content"
+                  },
+                  {
+                    "description": "Jump to specific line",
+                    "command": "view(action='window', path='{path}', line=<NUMBER>)",
+                    "reason": "Navigate to location"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    
+    "workflow": {
+      "description": "Guided workflow operations",
+      "actions": {
+        "suggest": {
+          "description": "Get workflow suggestions",
+          "success_hints": {
+            "message": "Workflow suggestions based on current context",
+            "suggested_next": [
+              {
+                "condition": "has_active_file",
+                "suggestions": [
+                  {
+                    "description": "Analyze link structure",
+                    "command": "workflow(action='analyze', type='links', path='{active_file}')",
+                    "reason": "Understand connections"
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  
+  "efficiency_rules": [
+    {
+      "pattern": "multiple_edits_same_file",
+      "hint": "Consider batching edits to the same file to reduce tool calls"
+    },
+    {
+      "pattern": "recreate_existing_file",
+      "hint": "File exists - use edit operations instead of delete + create"
+    },
+    {
+      "pattern": "search_after_create",
+      "hint": "New content won't appear in search immediately - index may need updating"
+    }
+  ],
+  
+  "context_triggers": {
+    "daily_note_pattern": ".*daily.*|.*journal.*|\\d{4}-\\d{2}-\\d{2}",
+    "meeting_note_pattern": ".*meeting.*|.*standup.*|.*1-on-1.*",
+    "project_note_pattern": ".*project.*|.*epic.*|.*milestone.*"
+  }
+}
