@@ -16,8 +16,7 @@ export class ObsidianAPI {
     this.client = axios.create({
       baseURL,
       headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json'
+        'Authorization': `Bearer ${config.apiKey}`
       },
       // Accept self-signed certificates for HTTPS
       httpsAgent: baseURL.startsWith('https') ? new https.Agent({
@@ -39,12 +38,16 @@ export class ObsidianAPI {
   }
 
   async updateActiveFile(content: string) {
-    const response = await this.client.put('/active', { content });
+    const response = await this.client.put('/active', content, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
     return response.data;
   }
 
   async appendToActiveFile(content: string) {
-    const response = await this.client.post('/active', { content });
+    const response = await this.client.post('/active', content, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
     return response.data;
   }
 
@@ -91,17 +94,25 @@ export class ObsidianAPI {
   }
 
   async getFile(path: string): Promise<ObsidianFile> {
-    const response = await this.client.get(`/vault/${path}`);
+    const response = await this.client.get(`/vault/${path}`, {
+      headers: {
+        'Accept': 'application/vnd.olrapi.note+json'
+      }
+    });
     return response.data;
   }
 
   async createFile(path: string, content: string) {
-    const response = await this.client.put(`/vault/${path}`, { content });
+    const response = await this.client.put(`/vault/${path}`, content, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
     return response.data;
   }
 
   async updateFile(path: string, content: string) {
-    const response = await this.client.put(`/vault/${path}`, { content });
+    const response = await this.client.put(`/vault/${path}`, content, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
     return response.data;
   }
 
@@ -111,7 +122,9 @@ export class ObsidianAPI {
   }
 
   async appendToFile(path: string, content: string) {
-    const response = await this.client.post(`/vault/${path}`, { content });
+    const response = await this.client.post(`/vault/${path}`, content, {
+      headers: { 'Content-Type': 'text/plain' }
+    });
     return response.data;
   }
 
@@ -148,7 +161,9 @@ export class ObsidianAPI {
   // Search operations
   async searchSimple(query: string) {
     try {
-      const response = await this.client.post('/search/simple', { query });
+      const response = await this.client.post('/search/simple', null, {
+        params: { query }
+      });
       return response.data;
     } catch (error: any) {
       if (error.code === 'ECONNREFUSED') {
@@ -160,7 +175,7 @@ export class ObsidianAPI {
 
   // Open file in Obsidian
   async openFile(path: string) {
-    const response = await this.client.post('/open', { path });
+    const response = await this.client.post(`/open/${encodeURIComponent(path)}`);
     return response.data;
   }
 }
