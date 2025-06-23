@@ -29,7 +29,7 @@ const obsidianAPI = new ObsidianAPI({
 const server = new Server(
   {
     name: 'obsidian-semantic-mcp',
-    version: '1.1.0',
+    version: '1.1.1',
   },
   {
     capabilities: {
