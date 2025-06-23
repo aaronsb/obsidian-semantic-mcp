@@ -4,6 +4,7 @@ import { vaultFileTools } from './vault-files.js';
 import { searchTools } from './search.js';
 import { searchPaginatedTool } from './search-paginated.js';
 import { fetchTool } from './fetch.js';
+import { windowEditTools } from './window-edit.js';
 
 export const allTools = [
   serverInfoTool,
@@ -11,5 +12,6 @@ export const allTools = [
   ...vaultFileTools,
   ...searchTools,
   searchPaginatedTool,
-  fetchTool
+  fetchTool,
+  ...windowEditTools
 ];
