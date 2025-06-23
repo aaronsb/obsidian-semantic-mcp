@@ -178,4 +178,48 @@ export class ObsidianAPI {
     const response = await this.client.post(`/open/${encodeURIComponent(path)}`);
     return response.data;
   }
+  
+  // Commands
+  async getCommands() {
+    const response = await this.client.get('/commands/');
+    return response.data;
+  }
+  
+  async executeCommand(commandId: string) {
+    const response = await this.client.post(`/commands/${encodeURIComponent(commandId)}/`);
+    return response.data;
+  }
+  
+  // Search with pagination
+  async searchPaginated(query: string, page: number = 1, pageSize: number = 10) {
+    // Since the API doesn't support pagination natively, we'll implement it client-side
+    const allResults = await this.searchSimple(query);
+    
+    if (!allResults || !Array.isArray(allResults)) {
+      return {
+        query,
+        page,
+        pageSize,
+        totalResults: 0,
+        totalPages: 0,
+        results: [],
+        method: 'api'
+      };
+    }
+    
+    const totalResults = allResults.length;
+    const totalPages = Math.ceil(totalResults / pageSize);
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    
+    return {
+      query,
+      page,
+      pageSize,
+      totalResults,
+      totalPages,
+      results: allResults.slice(startIndex, endIndex),
+      method: 'api'
+    };
+  }
 }

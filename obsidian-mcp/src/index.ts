@@ -7,6 +7,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAPI } from './utils/obsidian-api.js';
 import { allTools } from './tools/index.js';
+// import { semanticTools } from './tools/semantic-tools.js'; // Ready but not active yet
 
 // Get configuration from environment
 const API_KEY = process.env.OBSIDIAN_API_KEY;

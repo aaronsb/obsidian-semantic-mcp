@@ -15,7 +15,7 @@ import { StateTokenManager } from './state-tokens.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export class SemanticRouter {
-  private config: WorkflowConfig;
+  private config!: WorkflowConfig;
   private context: SemanticContext = {};
   private api: ObsidianAPI;
   private tokenManager: StateTokenManager;
@@ -140,9 +140,50 @@ export class SemanticRouter {
         );
       case 'append':
         return await this.api.appendToFile(params.path, params.content);
+      case 'patch':
+        return await this.api.patchVaultFile(params.path, {
+          operation: params.operation,
+          targetType: params.targetType,
+          target: params.target,
+          content: params.content
+        });
       case 'at_line':
-        // Implementation would go here
-        throw new Error('Not implemented yet');
+        // Get content to insert
+        let insertContent = params.content;
+        if (!insertContent) {
+          const buffered = buffer.retrieve();
+          if (!buffered) {
+            throw new Error('No content provided and no buffered content found');
+          }
+          insertContent = buffered.content;
+        }
+        
+        // Get file and perform line-based edit
+        const file = await this.api.getFile(params.path);
+        const content = typeof file === 'string' ? file : file.content;
+        const lines = content.split('\n');
+        
+        if (params.lineNumber < 1 || params.lineNumber > lines.length + 1) {
+          throw new Error(`Invalid line number ${params.lineNumber}. File has ${lines.length} lines.`);
+        }
+        
+        const lineIndex = params.lineNumber - 1;
+        const mode = params.mode || 'replace';
+        
+        switch (mode) {
+          case 'before':
+            lines.splice(lineIndex, 0, insertContent);
+            break;
+          case 'after':
+            lines.splice(lineIndex + 1, 0, insertContent);
+            break;
+          case 'replace':
+            lines[lineIndex] = insertContent;
+            break;
+        }
+        
+        await this.api.updateFile(params.path, lines.join('\n'));
+        return { success: true, line: params.lineNumber, mode };
       case 'from_buffer':
         const buffered = buffer.retrieve();
         if (!buffered) {
@@ -164,9 +205,45 @@ export class SemanticRouter {
     switch (action) {
       case 'file':
         return await this.api.getFile(params.path);
+      case 'window':
+        // View a portion of a file
+        const file = await this.api.getFile(params.path);
+        const content = typeof file === 'string' ? file : file.content;
+        const lines = content.split('\n');
+        
+        let centerLine = params.lineNumber || 1;
+        
+        // If search text provided, find it
+        if (params.searchText && !params.lineNumber) {
+          const { findFuzzyMatches } = await import('../utils/fuzzy-match.js');
+          const matches = findFuzzyMatches(content, params.searchText, 0.6);
+          if (matches.length > 0) {
+            centerLine = matches[0].lineNumber;
+          }
+        }
+        
+        // Calculate window
+        const windowSize = params.windowSize || 20;
+        const halfWindow = Math.floor(windowSize / 2);
+        const startLine = Math.max(1, centerLine - halfWindow);
+        const endLine = Math.min(lines.length, centerLine + halfWindow);
+        
+        return {
+          path: params.path,
+          lines: lines.slice(startLine - 1, endLine),
+          startLine,
+          endLine,
+          totalLines: lines.length,
+          centerLine,
+          searchText: params.searchText
+        };
+        
+      case 'active':
+        return await this.api.getActiveFile();
+        
       case 'open_in_obsidian':
         return await this.api.openFile(params.path);
-      // Add other view operations
+        
       default:
         throw new Error(`Unknown view action: ${action}`);
     }
@@ -185,6 +262,12 @@ export class SemanticRouter {
     switch (action) {
       case 'info':
         return await this.api.getServerInfo();
+      case 'commands':
+        return await this.api.getCommands();
+      case 'fetch_web':
+        // Import fetch tool dynamically
+        const { fetchTool } = await import('../tools/fetch.js');
+        return await fetchTool.handler(this.api, params);
       default:
         throw new Error(`Unknown system action: ${action}`);
     }
@@ -351,8 +434,8 @@ export class SemanticRouter {
       search_history: this.context.search_history,
       // Include relevant token states
       has_file_content: tokens.file_content,
-      has_links: tokens.file_has_links?.length > 0,
-      has_tags: tokens.file_has_tags?.length > 0,
+      has_links: (tokens.file_has_links?.length ?? 0) > 0,
+      has_tags: (tokens.file_has_tags?.length ?? 0) > 0,
       search_results_available: tokens.search_has_results,
       linked_files: tokens.file_has_links,
       tags: tokens.file_has_tags

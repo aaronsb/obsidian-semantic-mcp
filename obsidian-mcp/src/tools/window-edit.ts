@@ -3,7 +3,7 @@ import { findFuzzyMatches, extractContext } from '../utils/fuzzy-match.js';
 import { ContentBufferManager } from '../utils/content-buffer.js';
 
 // Shared edit logic to avoid circular references
-async function performWindowEdit(
+export async function performWindowEdit(
   api: ObsidianAPI,
   path: string,
   oldText: string,
