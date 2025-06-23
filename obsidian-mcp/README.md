@@ -8,12 +8,7 @@ A clean, simple MCP server for Obsidian integration via the Local REST API plugi
    - Install the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin
    - Enable it and copy the API key from settings
 
-2. **Install the server:**
-   ```bash
-   npx obsidian-mcp-server
-   ```
-
-3. **Configure Claude Desktop:**
+2. **Configure Claude Desktop:**
    
    Add to your Claude Desktop config:
    ```json
@@ -21,9 +16,11 @@ A clean, simple MCP server for Obsidian integration via the Local REST API plugi
      "mcpServers": {
        "obsidian": {
          "command": "npx",
-         "args": ["-y", "obsidian-mcp-server"],
+         "args": ["-y", "https://github.com/aaronsb/obsidian-mcp.git"],
          "env": {
-           "OBSIDIAN_API_KEY": "your-api-key-here"
+           "OBSIDIAN_API_KEY": "your-api-key-here",
+           "OBSIDIAN_API_URL": "https://127.0.0.1:27124",
+           "OBSIDIAN_VAULT_NAME": "your-vault-name"
          }
        }
      }

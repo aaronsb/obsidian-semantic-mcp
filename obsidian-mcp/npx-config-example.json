@@ -1,0 +1,16 @@
+{
+  "obsidian-cprime-docs": {
+    "command": "npx",
+    "args": [
+      "-y",
+      "git+https://github.com/aaronsb/obsidian-mcp.git"
+    ],
+    "env": {
+      "OBSIDIAN_API_KEY": "your-api-key-here",
+      "OBSIDIAN_API_URL": "https://127.0.0.1:27124",
+      "OBSIDIAN_VAULT_NAME": "your-vault-name"
+    },
+    "disabled": false,
+    "transportType": "stdio"
+  }
+}
