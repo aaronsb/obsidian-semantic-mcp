@@ -1,4 +1,4 @@
-# Obsidian MCP Server
+# Obsidian Semantic MCP Server
 
 A clean, simple MCP server for Obsidian integration via the Local REST API plugin.
 
@@ -16,7 +16,7 @@ A clean, simple MCP server for Obsidian integration via the Local REST API plugi
      "mcpServers": {
        "obsidian": {
          "command": "npx",
-         "args": ["-y", "https://github.com/aaronsb/obsidian-mcp.git"],
+         "args": ["-y", "obsidian-semantic-mcp"],
          "env": {
            "OBSIDIAN_API_KEY": "your-api-key-here",
            "OBSIDIAN_API_URL": "https://127.0.0.1:27124",
