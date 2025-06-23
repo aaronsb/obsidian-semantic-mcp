@@ -50,10 +50,12 @@ export const vaultFileTools = [
     handler: async (api: ObsidianAPI, args: any) => {
       try {
         const file = await api.getFile(args.path);
+        // The API returns the content directly as a string
+        const content = typeof file === 'string' ? file : JSON.stringify(file, null, 2);
         return {
           content: [{
             type: 'text',
-            text: file.content
+            text: content
           }]
         };
       } catch (error: any) {

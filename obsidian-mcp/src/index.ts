@@ -76,7 +76,6 @@ process.on('SIGINT', async () => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`Obsidian MCP Server running for vault: ${VAULT_NAME}`);
   
   // Keep the process alive
   process.stdin.resume();

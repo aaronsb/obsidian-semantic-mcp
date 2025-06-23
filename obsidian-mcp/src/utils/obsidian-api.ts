@@ -147,8 +147,15 @@ export class ObsidianAPI {
 
   // Search operations
   async searchSimple(query: string) {
-    const response = await this.client.post('/search/simple', { query });
-    return response.data;
+    try {
+      const response = await this.client.post('/search/simple', { query });
+      return response.data;
+    } catch (error: any) {
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error('Cannot connect to Obsidian. Is the Local REST API plugin running?');
+      }
+      throw error;
+    }
   }
 
   // Open file in Obsidian

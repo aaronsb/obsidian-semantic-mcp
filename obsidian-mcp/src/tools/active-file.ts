@@ -12,10 +12,12 @@ export const activeFileTools = [
     handler: async (api: ObsidianAPI) => {
       try {
         const file = await api.getActiveFile();
+        // The API returns the content directly as a string
+        const content = typeof file === 'string' ? file : JSON.stringify(file, null, 2);
         return {
           content: [{
             type: 'text',
-            text: file.content
+            text: content
           }]
         };
       } catch (error: any) {
