@@ -22,17 +22,19 @@
   "author": "Aaron Bockelie",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "src",
+    "tsconfig.json"
   ],
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
+    "@types/node": "^20.0.0",
     "@types/turndown": "^5.0.5",
     "axios": "^1.7.9",
-    "turndown": "^7.2.0"
+    "turndown": "^7.2.0",
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.3.3"
+    "tsx": "^4.0.0"
   }
 }
