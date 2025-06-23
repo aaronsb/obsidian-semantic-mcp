@@ -49,7 +49,7 @@ A clean, simple MCP server for Obsidian integration via the Local REST API plugi
 - `patch_vault_file` - Insert or modify content in vault files relative to headings, blocks, or frontmatter
 
 ### Search and Navigation
-- `search_vault_simple` - Simple text search across the vault
+- `search_vault_simple` - Simple text search across the vault ⚠️ **Note: Currently has issues due to [API bug](https://github.com/coddingtonbear/obsidian-local-rest-api/issues/172)**
 - `show_file_in_obsidian` - Open file in Obsidian UI
 
 ### Web Content
@@ -104,6 +104,10 @@ npm run build
 # Start
 npm start
 ```
+
+## Known Issues
+
+- **Search functionality**: The `search_vault_simple` tool may hang or timeout due to a [known issue](https://github.com/coddingtonbear/obsidian-local-rest-api/issues/172) in the Obsidian Local REST API plugin. As a workaround, use the file listing and reading tools to navigate your vault.
 
 ## License
 

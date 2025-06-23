@@ -3,7 +3,7 @@ import { ObsidianAPI } from '../utils/obsidian-api.js';
 export const searchTools = [
   {
     name: 'search_vault_simple',
-    description: 'Simple text search across the vault with context',
+    description: 'Simple text search across the vault (Note: may timeout due to known API issues - see GitHub issue #172)',
     inputSchema: {
       type: 'object',
       properties: {
