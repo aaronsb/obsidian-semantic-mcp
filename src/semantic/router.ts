@@ -11,6 +11,7 @@ import {
 } from '../types/semantic.js';
 import { ContentBufferManager } from '../utils/content-buffer.js';
 import { StateTokenManager } from './state-tokens.js';
+import { limitResponse } from '../utils/response-limiter.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -288,8 +289,11 @@ export class SemanticRouter {
     const operationConfig = this.config?.operations?.[operation];
     const actionConfig = operationConfig?.actions?.[action];
     
+    // Limit the result size to prevent token overflow
+    const limitedResult = limitResponse(result);
+    
     const response: SemanticResponse = {
-      result,
+      result: limitedResult,
       context: this.getCurrentContext()
     };
     
