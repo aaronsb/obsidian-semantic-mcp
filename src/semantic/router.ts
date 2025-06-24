@@ -12,6 +12,7 @@ import {
 import { ContentBufferManager } from '../utils/content-buffer.js';
 import { StateTokenManager } from './state-tokens.js';
 import { limitResponse } from '../utils/response-limiter.js';
+import { isImageFile } from '../types/obsidian.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -118,7 +119,9 @@ export class SemanticRouter {
       case 'list':
         return await this.api.listFiles(params.directory);
       case 'read':
-        return await this.api.getFile(params.path);
+        const fileResponse = await this.api.getFile(params.path);
+        // Return the raw response - it will be handled by the semantic tools handler
+        return fileResponse;
       case 'create':
         return await this.api.createFile(params.path, params.content || '');
       case 'update':
@@ -172,6 +175,9 @@ export class SemanticRouter {
         
         // Get file and perform line-based edit
         const file = await this.api.getFile(params.path);
+        if (isImageFile(file)) {
+          throw new Error('Cannot perform line-based edits on image files');
+        }
         const content = typeof file === 'string' ? file : file.content;
         const lines = content.split('\n');
         
@@ -220,6 +226,9 @@ export class SemanticRouter {
       case 'window':
         // View a portion of a file
         const file = await this.api.getFile(params.path);
+        if (isImageFile(file)) {
+          throw new Error('Cannot view window of image files');
+        }
         const content = typeof file === 'string' ? file : file.content;
         const lines = content.split('\n');
         
@@ -289,8 +298,11 @@ export class SemanticRouter {
     const operationConfig = this.config?.operations?.[operation];
     const actionConfig = operationConfig?.actions?.[action];
     
-    // Limit the result size to prevent token overflow
-    const limitedResult = limitResponse(result);
+    // Skip limiting for vault read operations - we want the full document
+    const shouldLimit = !(operation === 'vault' && action === 'read');
+    
+    // Limit the result size to prevent token overflow (except for vault reads)
+    const limitedResult = shouldLimit ? limitResponse(result) : result;
     
     const response: SemanticResponse = {
       result: limitedResult,

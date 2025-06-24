@@ -1,7 +1,8 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
-import { ObsidianConfig, ObsidianFile } from '../types/obsidian.js';
+import { ObsidianConfig, ObsidianFile, ObsidianFileResponse } from '../types/obsidian.js';
 import { limitSearchResults, DEFAULT_LIMITER_CONFIG } from './response-limiter.js';
+import { isImageFile as checkIsImageFile, processImageResponse } from './image-handler.js';
 
 export class ObsidianAPI {
   private client: AxiosInstance;
@@ -94,13 +95,26 @@ export class ObsidianAPI {
     return response.data.files || [];
   }
 
-  async getFile(path: string): Promise<ObsidianFile> {
-    const response = await this.client.get(`/vault/${path}`, {
-      headers: {
-        'Accept': 'application/vnd.olrapi.note+json'
-      }
-    });
-    return response.data;
+  async getFile(path: string): Promise<ObsidianFileResponse> {
+    // Check if the file is an image based on extension
+    if (checkIsImageFile(path)) {
+      // For images, request raw binary data
+      const response = await this.client.get(`/vault/${path}`, {
+        responseType: 'arraybuffer',
+        headers: {
+          'Accept': '*/*'
+        }
+      });
+      return await processImageResponse(response, path);
+    } else {
+      // For text files, use the existing logic
+      const response = await this.client.get(`/vault/${path}`, {
+        headers: {
+          'Accept': 'application/vnd.olrapi.note+json'
+        }
+      });
+      return response.data;
+    }
   }
 
   async createFile(path: string, content: string) {

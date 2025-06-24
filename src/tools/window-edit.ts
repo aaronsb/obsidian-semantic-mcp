@@ -1,6 +1,7 @@
 import { ObsidianAPI } from '../utils/obsidian-api.js';
 import { findFuzzyMatches, extractContext } from '../utils/fuzzy-match.js';
 import { ContentBufferManager } from '../utils/content-buffer.js';
+import { isImageFile } from '../types/obsidian.js';
 
 // Shared edit logic to avoid circular references
 export async function performWindowEdit(
@@ -14,6 +15,9 @@ export async function performWindowEdit(
   
   // Get current file content
   const file = await api.getFile(path);
+  if (isImageFile(file)) {
+    throw new Error('Cannot perform window edits on image files');
+  }
   const content = typeof file === 'string' ? file : file.content;
   
   // Try exact match first
@@ -244,6 +248,9 @@ export const windowEditTools = [
         
         // Get current file content
         const file = await api.getFile(args.path);
+        if (isImageFile(file)) {
+          throw new Error('Cannot perform line-based edits on image files');
+        }
         const content = typeof file === 'string' ? file : file.content;
         const lines = content.split('\n');
         
@@ -325,6 +332,9 @@ export const windowEditTools = [
     handler: async (api: ObsidianAPI, args: any) => {
       try {
         const file = await api.getFile(args.path);
+        if (isImageFile(file)) {
+          throw new Error('Cannot view window of image files');
+        }
         const content = typeof file === 'string' ? file : file.content;
         const lines = content.split('\n');
         

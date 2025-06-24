@@ -11,6 +11,18 @@ export interface ObsidianFile {
   frontmatter?: Record<string, any>;
 }
 
+export interface ObsidianImageFile {
+  path: string;
+  mimeType: string;
+  base64Data: string;
+}
+
+export type ObsidianFileResponse = ObsidianFile | ObsidianImageFile;
+
+export function isImageFile(file: ObsidianFileResponse): file is ObsidianImageFile {
+  return 'mimeType' in file && 'base64Data' in file;
+}
+
 export interface SearchResult {
   path: string;
   content: string;
