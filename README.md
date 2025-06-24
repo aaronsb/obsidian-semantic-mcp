@@ -1,6 +1,21 @@
 # Obsidian Semantic MCP Server
 
+[![npm version](https://badge.fury.io/js/obsidian-semantic-mcp.svg)](https://www.npmjs.com/package/obsidian-semantic-mcp)
+
 A semantic, AI-optimized MCP server for Obsidian that consolidates 21+ tools into 5 intelligent operations with contextual workflow hints.
+
+## Installation
+
+```bash
+npm install -g obsidian-semantic-mcp
+```
+
+Or use directly with npx (recommended):
+```bash
+npx obsidian-semantic-mcp
+```
+
+View on npm: https://www.npmjs.com/package/obsidian-semantic-mcp
 
 ## Quick Start
 
@@ -10,7 +25,7 @@ A semantic, AI-optimized MCP server for Obsidian that consolidates 21+ tools int
 
 2. **Configure Claude Desktop:**
    
-   Add to your Claude Desktop config:
+   The npx command is automatically used in the Claude Desktop configuration. Add this to your Claude Desktop config (usually found at `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
    ```json
    {
      "mcpServers": {
