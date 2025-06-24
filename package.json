@@ -1,12 +1,12 @@
 {
   "name": "obsidian-semantic-mcp",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Semantic MCP server for Obsidian - AI-optimized interface with 5 intelligent operations",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "obsidian-semantic-mcp": "./dist/index.js"
+    "obsidian-semantic-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc && cp -r src/config dist/ && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",

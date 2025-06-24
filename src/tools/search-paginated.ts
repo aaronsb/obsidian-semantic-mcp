@@ -1,4 +1,5 @@
 import { ObsidianAPI } from '../utils/obsidian-api.js';
+import { limitSearchResults, truncateContent } from '../utils/response-limiter.js';
 
 interface SearchResult {
   path: string;
@@ -60,33 +61,16 @@ export const searchPaginatedTool = {
         clearTimeout(timeoutId);
         
         if (apiResults && Array.isArray(apiResults)) {
-          // Process API results with pagination
-          const totalResults = apiResults.length;
+          // First apply response limiting to prevent token overflow
+          const { results: limitedResults, truncated, originalCount } = limitSearchResults(apiResults);
+          
+          // Then apply pagination
+          const totalResults = limitedResults.length;
           const totalPages = Math.ceil(totalResults / pageSize);
           const startIndex = (page - 1) * pageSize;
           const endIndex = startIndex + pageSize;
           
-          const paginatedResults = apiResults.slice(startIndex, endIndex).map((result: any) => {
-            // Extract just the essential information
-            const processed: SearchResult = {
-              path: result.path || result.filename || '',
-              title: result.title || result.basename || result.path?.split('/').pop()?.replace('.md', '') || '',
-            };
-            
-            // Add context if available but limit its size
-            if (result.context || result.content) {
-              const context = result.context || result.content;
-              processed.context = typeof context === 'string' 
-                ? context.substring(0, 200) + (context.length > 200 ? '...' : '')
-                : '';
-            }
-            
-            if (result.score) {
-              processed.score = result.score;
-            }
-            
-            return processed;
-          });
+          const paginatedResults = limitedResults.slice(startIndex, endIndex);
           
           const response: PaginatedSearchResponse = {
             query: args.query,
@@ -97,6 +81,13 @@ export const searchPaginatedTool = {
             results: paginatedResults,
             method: 'api'
           };
+          
+          // Add truncation info if applicable
+          if (truncated) {
+            (response as any).truncated = true;
+            (response as any).originalResultCount = originalCount;
+            (response as any).message = `Results limited to prevent token overflow. Showing paginated view of ${totalResults} results (originally ${originalCount}).`;
+          }
           
           return {
             content: [{

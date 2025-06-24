@@ -1,0 +1,9 @@
+{
+  "maxTokens": 20000,
+  "contentPreviewLength": 200,
+  "includeContentHash": true,
+  "searchSpecific": {
+    "maxResultsBeforeTruncation": 100,
+    "contentPreviewLength": 150
+  }
+}

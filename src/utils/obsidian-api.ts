@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import https from 'https';
 import { ObsidianConfig, ObsidianFile } from '../types/obsidian.js';
+import { limitSearchResults, DEFAULT_LIMITER_CONFIG } from './response-limiter.js';
 
 export class ObsidianAPI {
   private client: AxiosInstance;
@@ -207,7 +208,10 @@ export class ObsidianAPI {
       };
     }
     
-    const totalResults = allResults.length;
+    // First limit the results to prevent token overflow
+    const { results: limitedResults, truncated, originalCount } = limitSearchResults(allResults);
+    
+    const totalResults = limitedResults.length;
     const totalPages = Math.ceil(totalResults / pageSize);
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -218,8 +222,14 @@ export class ObsidianAPI {
       pageSize,
       totalResults,
       totalPages,
-      results: allResults.slice(startIndex, endIndex),
-      method: 'api'
+      results: limitedResults.slice(startIndex, endIndex),
+      method: 'api',
+      // Add metadata about truncation
+      ...(truncated && {
+        truncated: true,
+        originalResultCount: originalCount,
+        message: `Results limited to prevent token overflow. Showing ${limitedResults.length} of ${originalCount} results.`
+      })
     };
   }
 }
