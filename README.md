@@ -4,6 +4,12 @@
 
 A semantic, AI-optimized MCP server for Obsidian that consolidates 21+ tools into 5 intelligent operations with contextual workflow hints.
 
+## Prerequisites
+
+- [Obsidian](https://obsidian.md/) installed on your computer
+- [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin installed in your Obsidian vault
+- [Claude Desktop](https://claude.ai/download) app
+
 ## Installation
 
 ```bash
@@ -19,9 +25,12 @@ View on npm: https://www.npmjs.com/package/obsidian-semantic-mcp
 
 ## Quick Start
 
-1. **Install in Obsidian:**
-   - Install the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin
-   - Enable it and copy the API key from settings
+1. **Install the Obsidian Plugin:**
+   - Open Obsidian Settings → Community Plugins
+   - Browse and search for "Local REST API"
+   - Install the [Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin by Adam Coddington
+   - Enable the plugin
+   - In the plugin settings, copy your API key (you'll need this for configuration)
 
 2. **Configure Claude Desktop:**
    
