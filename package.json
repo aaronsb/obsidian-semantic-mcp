@@ -1,7 +1,7 @@
 {
   "name": "obsidian-semantic-mcp",
-  "version": "1.3.0",
-  "description": "MCP server for Obsidian integration via Local REST API",
+  "version": "1.4.0",
+  "description": "Semantic MCP server for Obsidian - AI-optimized interface with 5 intelligent operations",
   "private": false,
   "type": "module",
   "main": "dist/index.js",
@@ -9,11 +9,9 @@
     "obsidian-semantic-mcp": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && cp -r src/config dist/ && node -e \"require('fs').chmodSync('dist/index.js', '755')\" && node -e \"require('fs').chmodSync('dist/index-semantic.js', '755')\"",
+    "build": "tsc && cp -r src/config dist/ && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",
     "dev": "tsx watch src/index.ts",
-    "dev:semantic": "tsx watch src/index-semantic.ts",
     "start": "node dist/index.js",
-    "start:semantic": "node dist/index-semantic.js",
     "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
     "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
     "lint": "eslint src/**/*.ts",

@@ -6,8 +6,7 @@ import {
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAPI } from './utils/obsidian-api.js';
-import { allTools } from './tools/index.js';
-// import { semanticTools } from './tools/semantic-tools.js'; // Ready but not active yet
+import { semanticTools } from './tools/semantic-tools.js';
 
 // Get configuration from environment
 const API_KEY = process.env.OBSIDIAN_API_KEY;
@@ -30,7 +29,7 @@ const obsidianAPI = new ObsidianAPI({
 const server = new Server(
   {
     name: 'obsidian-semantic-mcp',
-    version: '1.1.1',
+    version: '1.4.0',
   },
   {
     capabilities: {
@@ -42,7 +41,7 @@ const server = new Server(
 // Handle tool listing
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
-    tools: allTools.map(tool => ({
+    tools: semanticTools.map(tool => ({
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema
@@ -54,7 +53,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   
-  const tool = allTools.find(t => t.name === name);
+  const tool = semanticTools.find(t => t.name === name);
   if (!tool) {
     throw new Error(`Tool not found: ${name}`);
   }
@@ -77,6 +76,8 @@ process.on('SIGINT', async () => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+  
+  console.error('[Semantic Tools Active] - 5 operations: vault, edit, view, workflow, system');
   
   // Keep the process alive
   process.stdin.resume();
