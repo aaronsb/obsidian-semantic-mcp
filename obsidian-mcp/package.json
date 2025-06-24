@@ -9,9 +9,16 @@
     "obsidian-semantic-mcp": "./dist/index.js"
   },
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('dist/index.js', '755')\"",
+    "build": "tsc && cp -r src/config dist/ && node -e \"require('fs').chmodSync('dist/index.js', '755')\" && node -e \"require('fs').chmodSync('dist/index-semantic.js', '755')\"",
     "dev": "tsx watch src/index.ts",
+    "dev:semantic": "tsx watch src/index-semantic.ts",
     "start": "node dist/index.js",
+    "start:semantic": "node dist/index-semantic.js",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' jest",
+    "test:coverage": "NODE_OPTIONS='--experimental-vm-modules' jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "build:full": "npm run test && npm run build",
     "prepare": "npm run build"
   },
   "keywords": [
@@ -36,6 +43,14 @@
     "typescript": "^5.3.3"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.35.0",
+    "@typescript-eslint/parser": "^8.35.0",
+    "eslint": "^9.29.0",
+    "eslint-config-prettier": "^10.1.5",
+    "jest": "^30.0.2",
+    "prettier": "^3.6.0",
+    "ts-jest": "^29.4.0",
     "tsx": "^4.0.0"
   }
 }

@@ -74,6 +74,31 @@
                 ]
               }
             ]
+          },
+          "failure_hints": {
+            "message": "File not found: {path}",
+            "suggested_next": [
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "Create this file",
+                    "command": "vault(action='create', path='{path}', content='')",
+                    "reason": "Start new document"
+                  },
+                  {
+                    "description": "Search for similar files",
+                    "command": "vault(action='search', query='{filename}')",
+                    "reason": "Find related content"
+                  },
+                  {
+                    "description": "List directory contents",
+                    "command": "vault(action='list', directory='{directory}')",
+                    "reason": "Browse available files"
+                  }
+                ]
+              }
+            ]
           }
         },
         
@@ -200,6 +225,12 @@
                     "requires_tokens": "can_use_buffer"
                   },
                   {
+                    "description": "Retry with buffered content",
+                    "command": "edit(action='from_buffer', path='{path}')",
+                    "reason": "Use saved content",
+                    "requires_tokens": "can_use_buffer"
+                  },
+                  {
                     "description": "Try with lower threshold",
                     "command": "edit(action='window', path='{path}', oldText='{old_text}', fuzzyThreshold=0.5)",
                     "reason": "Find approximate matches"
@@ -276,6 +307,13 @@
               }
             ]
           }
+        },
+        "open_in_obsidian": {
+          "description": "Open file in Obsidian",
+          "success_hints": {
+            "message": "Opened {path} in Obsidian",
+            "suggested_next": []
+          }
         }
       }
     },
@@ -299,6 +337,26 @@
                 ]
               }
             ]
+          }
+        }
+      }
+    },
+    
+    "system": {
+      "description": "System operations",
+      "actions": {
+        "info": {
+          "description": "Get server info",
+          "success_hints": {
+            "message": "Server info retrieved",
+            "suggested_next": []
+          }
+        },
+        "commands": {
+          "description": "List available commands",
+          "success_hints": {
+            "message": "Listed {count} commands",
+            "suggested_next": []
           }
         }
       }

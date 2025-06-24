@@ -32,8 +32,15 @@ export class SemanticRouter {
       const configContent = readFileSync(configPath, 'utf-8');
       this.config = JSON.parse(configContent);
     } catch (error) {
-      console.error('Failed to load workflow config, using defaults', error);
-      this.config = this.getDefaultConfig();
+      // Try from current working directory for tests
+      try {
+        const configPath = join(process.cwd(), 'src/config/workflows.json');
+        const configContent = readFileSync(configPath, 'utf-8');
+        this.config = JSON.parse(configContent);
+      } catch {
+        console.warn('Failed to load config, using default');
+        this.config = this.getDefaultConfig();
+      }
     }
   }
   
@@ -131,13 +138,17 @@ export class SemanticRouter {
     
     switch (action) {
       case 'window':
-        return await performWindowEdit(
+        const result = await performWindowEdit(
           this.api,
           params.path,
           params.oldText,
           params.newText,
           params.fuzzyThreshold
         );
+        if (result.isError) {
+          throw new Error(result.content[0].text);
+        }
+        return result;
       case 'append':
         return await this.api.appendToFile(params.path, params.content);
       case 'patch':
@@ -274,8 +285,8 @@ export class SemanticRouter {
   }
   
   private enrichResponse(result: any, operation: string, action: string, params: any, isError: boolean): SemanticResponse {
-    const operationConfig = this.config.operations[operation];
-    const actionConfig = operationConfig?.actions[action];
+    const operationConfig = this.config?.operations?.[operation];
+    const actionConfig = operationConfig?.actions?.[action];
     
     const response: SemanticResponse = {
       result,
@@ -285,9 +296,9 @@ export class SemanticRouter {
     // Add workflow hints
     if (actionConfig) {
       const hints = isError ? actionConfig.failure_hints : actionConfig.success_hints;
-      if (hints) {
+      if (hints && hints.suggested_next) {
         response.workflow = {
-          message: this.interpolateMessage(hints.message, params, result),
+          message: this.interpolateMessage(hints.message || '', params, result),
           suggested_next: this.generateSuggestions(hints.suggested_next, params, result)
         };
       }
@@ -307,16 +318,20 @@ export class SemanticRouter {
   
   private interpolateMessage(template: string, params: any, result: any): string {
     return template.replace(/{(\w+)}/g, (match, key) => {
-      return params[key] || result[key] || match;
+      return params?.[key] || result?.[key] || match;
     });
   }
   
   private generateSuggestions(conditionalSuggestions: any[], params: any, result: any): SuggestedAction[] {
     const suggestions: SuggestedAction[] = [];
     
+    if (!Array.isArray(conditionalSuggestions)) {
+      return suggestions;
+    }
+    
     for (const conditional of conditionalSuggestions) {
       if (this.evaluateCondition(conditional.condition, params, result)) {
-        for (const suggestion of conditional.suggestions) {
+        for (const suggestion of conditional.suggestions || []) {
           // Check if required tokens are available
           if (suggestion.requires_tokens && !this.tokenManager.hasTokensFor(suggestion.requires_tokens)) {
             continue; // Skip this suggestion - required tokens not available
@@ -421,6 +436,27 @@ export class SemanticRouter {
     // Update buffer status
     const buffer = ContentBufferManager.getInstance();
     this.context.buffer_content = buffer.retrieve()?.content;
+    
+    // Update context based on the operation
+    const tokens = this.tokenManager.getTokens();
+    
+    if (tokens.file_loaded) {
+      this.context.last_file = tokens.file_loaded;
+      this.context.file_history = tokens.file_history;
+    }
+    
+    if (tokens.directory_listed) {
+      this.context.last_directory = tokens.directory_listed;
+    }
+    
+    if (tokens.search_query) {
+      if (!this.context.search_history) {
+        this.context.search_history = [];
+      }
+      if (!this.context.search_history.includes(tokens.search_query)) {
+        this.context.search_history.push(tokens.search_query);
+      }
+    }
   }
   
   private getCurrentContext() {
