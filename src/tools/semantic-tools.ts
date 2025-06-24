@@ -1,6 +1,7 @@
 import { ObsidianAPI } from '../utils/obsidian-api.js';
 import { SemanticRouter } from '../semantic/router.js';
 import { SemanticRequest } from '../types/semantic.js';
+import { isImageFile } from '../types/obsidian.js';
 
 /**
  * Unified semantic tools that consolidate all operations into 5 main verbs
@@ -44,6 +45,18 @@ const createSemanticTool = (operation: string) => ({
           }, null, 2)
         }],
         isError: true
+      };
+    }
+    
+    // Check if the result is an image file for vault read operations
+    if (operation === 'vault' && args.action === 'read' && response.result && isImageFile(response.result)) {
+      // Return image content for MCP
+      return {
+        content: [{
+          type: 'image',
+          data: response.result.base64Data,
+          mimeType: response.result.mimeType
+        }]
       };
     }
     
