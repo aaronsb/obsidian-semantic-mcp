@@ -125,6 +125,13 @@ export class SemanticRouter {
         // Default to fragment retrieval unless full file is explicitly requested
         if (params.returnFullFile) {
           const fileResponse = await this.api.getFile(params.path);
+          
+          // Check if it's an image file
+          if (isImageFile(fileResponse)) {
+            // Return the image object directly
+            return fileResponse;
+          }
+          
           const content = typeof fileResponse === 'string' ? fileResponse : JSON.stringify(fileResponse);
           const wordCount = content.split(/\s+/).length;
           
@@ -141,6 +148,12 @@ export class SemanticRouter {
         } else {
           // Use fragment retrieval by default
           const fileResponse = await this.api.getFile(params.path);
+          
+          // Check if it's an image file
+          if (isImageFile(fileResponse)) {
+            // Return the image object directly
+            return fileResponse;
+          }
           
           // Extract content from the response
           let fileContent: string;
