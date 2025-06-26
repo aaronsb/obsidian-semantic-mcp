@@ -181,7 +181,7 @@
       "description": "Smart editing operations",
       "actions": {
         "window": {
-          "description": "Edit with fuzzy matching",
+          "description": "Edit with fuzzy matching - make small, incremental changes",
           "success_hints": {
             "message": "Replaced text at line {line}",
             "suggested_next": [
@@ -189,19 +189,19 @@
                 "condition": "always",
                 "suggestions": [
                   {
-                    "description": "Continue editing this file",
-                    "command": "edit(action='window', path='{path}', ...)",
-                    "reason": "Make more changes"
-                  },
-                  {
-                    "description": "View changes in context",
+                    "description": "Save and verify your changes",
                     "command": "view(action='window', path='{path}', line={line})",
-                    "reason": "Verify edit"
+                    "reason": "IMPORTANT: Always verify edits before making more changes"
                   },
                   {
-                    "description": "Search for similar patterns",
-                    "command": "vault(action='search', query='{old_text}')",
-                    "reason": "Find other occurrences"
+                    "description": "Make another small edit",
+                    "command": "edit(action='window', path='{path}', ...)",
+                    "reason": "Keep edits small and incremental - avoid large replacements"
+                  },
+                  {
+                    "description": "Open in Obsidian to see full context",
+                    "command": "view(action='open_in_obsidian', path='{path}')",
+                    "reason": "Review changes in the full editor"
                   }
                 ]
               }
@@ -366,11 +366,20 @@
   "efficiency_rules": [
     {
       "pattern": "multiple_edits_same_file",
-      "hint": "Consider batching edits to the same file to reduce tool calls"
+      "hint": "Make small, incremental edits and save frequently - avoid large replacements"
+    },
+    {
+      "pattern": "large_edit_attempt",
+      "hint": "Break large edits into smaller chunks - edit one paragraph or section at a time",
+      "trigger": "window_edit_over_10_lines"
     },
     {
       "pattern": "recreate_existing_file",
       "hint": "File exists - use edit operations instead of delete + create"
+    },
+    {
+      "pattern": "full_file_replacement",
+      "hint": "NEVER replace entire file content - use incremental edits to preserve file integrity"
     },
     {
       "pattern": "search_after_create",
