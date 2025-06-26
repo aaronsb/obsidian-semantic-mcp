@@ -87,7 +87,7 @@ function getOperationDescription(operation: string): string {
 
 function getActionsForOperation(operation: string): string[] {
   const actions: Record<string, string[]> = {
-    vault: ['list', 'read', 'create', 'update', 'delete', 'search'],
+    vault: ['list', 'read', 'create', 'update', 'delete', 'search', 'fragments'],
     edit: ['window', 'append', 'patch', 'at_line', 'from_buffer'],
     view: ['file', 'window', 'active', 'open_in_obsidian'],
     workflow: ['suggest', 'analyze'],
@@ -131,6 +131,19 @@ function getParametersForOperation(operation: string): Record<string, any> {
       pageSize: {
         type: 'number',
         description: 'Number of results per page'
+      },
+      strategy: {
+        type: 'string',
+        enum: ['auto', 'adaptive', 'proximity', 'semantic'],
+        description: 'Fragment retrieval strategy (default: auto)'
+      },
+      maxFragments: {
+        type: 'number',
+        description: 'Maximum number of fragments to return (default: 5)'
+      },
+      returnFullFile: {
+        type: 'boolean',
+        description: 'Return full file instead of fragments (WARNING: large files can consume significant context)'
       },
       ...contentParam
     },

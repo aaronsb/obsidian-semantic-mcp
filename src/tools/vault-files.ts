@@ -1,4 +1,8 @@
 import { ObsidianAPI } from '../utils/obsidian-api.js';
+import { UniversalFragmentRetriever } from '../indexing/fragment-retriever.js';
+
+// Shared fragment retriever instance
+const fragmentRetriever = new UniversalFragmentRetriever();
 
 export const vaultFileTools = [
   {
@@ -36,13 +40,27 @@ export const vaultFileTools = [
   },
   {
     name: 'get_vault_file',
-    description: 'Get the content of a specific file from the vault',
+    description: 'Get relevant fragments from a file (default) or full file content. Uses intelligent fragment retrieval to reduce context consumption.',
     inputSchema: {
       type: 'object',
       properties: {
         path: {
           type: 'string',
           description: 'Path to the file'
+        },
+        query: {
+          type: 'string',
+          description: 'Optional search query to find specific fragments within the file'
+        },
+        returnFullFile: {
+          type: 'boolean',
+          description: 'Return full file instead of fragments (WARNING: large files can consume significant context)',
+          default: false
+        },
+        maxFragments: {
+          type: 'number',
+          description: 'Maximum number of fragments to return (default: 5)',
+          default: 5
         }
       },
       required: ['path']
@@ -50,12 +68,72 @@ export const vaultFileTools = [
     handler: async (api: ObsidianAPI, args: any) => {
       try {
         const file = await api.getFile(args.path);
-        // The API returns the content directly as a string
-        const content = typeof file === 'string' ? file : JSON.stringify(file, null, 2);
+        
+        // Handle non-text files (like images)
+        if (typeof file !== 'string') {
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify(file, null, 2)
+            }]
+          };
+        }
+        
+        const fileContent = file as string;
+        const wordCount = fileContent.split(/\s+/).length;
+        
+        // Return full file if requested
+        if (args.returnFullFile) {
+          let responseText = fileContent;
+          
+          // Add warning for large files
+          if (wordCount > 2000) {
+            responseText += `\n\n⚠️ WARNING: This file contains ${wordCount} words. Consider using fragment retrieval (omit returnFullFile) to reduce context consumption.`;
+          }
+          
+          return {
+            content: [{
+              type: 'text',
+              text: responseText
+            }]
+          };
+        }
+        
+        // Use fragment retrieval by default
+        const docId = `file:${args.path}`;
+        await fragmentRetriever.indexDocument(docId, args.path, fileContent);
+        
+        // Use provided query or extract from filename
+        const query = args.query || args.path.split('/').pop()?.replace('.md', '') || '';
+        const fragmentResponse = await fragmentRetriever.retrieveFragments(query, {
+          maxFragments: args.maxFragments || 5
+        });
+        
+        // Format the response
+        const fragments = fragmentResponse.result;
+        let responseText = `📄 **File**: ${args.path}\n`;
+        responseText += `📊 **Stats**: ${wordCount} words total, showing ${fragments.length} most relevant fragments\n\n`;
+        
+        if (fragments.length === 0) {
+          responseText += `No relevant fragments found for query: "${query}"\n`;
+          responseText += `💡 **Hint**: Try 'returnFullFile: true' to get the complete file content.`;
+        } else {
+          fragments.forEach((fragment, idx) => {
+            responseText += `### Fragment ${idx + 1} (lines ${fragment.lineStart}-${fragment.lineEnd}, score: ${fragment.score.toFixed(2)})\n\n`;
+            responseText += fragment.content + '\n\n';
+            responseText += '---\n\n';
+          });
+          
+          responseText += `💡 **Hints**:\n`;
+          responseText += `- To see the full file (${wordCount} words), use: 'returnFullFile: true'\n`;
+          responseText += `- To search for specific content, use: 'query: "your search terms"'\n`;
+          responseText += `- To get more fragments, use: 'maxFragments: 10'`;
+        }
+        
         return {
           content: [{
             type: 'text',
-            text: content
+            text: responseText
           }]
         };
       } catch (error: any) {

@@ -13,6 +13,7 @@ import { ContentBufferManager } from '../utils/content-buffer.js';
 import { StateTokenManager } from './state-tokens.js';
 import { limitResponse } from '../utils/response-limiter.js';
 import { isImageFile } from '../types/obsidian.js';
+import { UniversalFragmentRetriever } from '../indexing/fragment-retriever.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -21,10 +22,12 @@ export class SemanticRouter {
   private context: SemanticContext = {};
   private api: ObsidianAPI;
   private tokenManager: StateTokenManager;
+  private fragmentRetriever: UniversalFragmentRetriever;
   
   constructor(api: ObsidianAPI) {
     this.api = api;
     this.tokenManager = new StateTokenManager();
+    this.fragmentRetriever = new UniversalFragmentRetriever();
     this.loadConfig();
   }
   
@@ -119,9 +122,85 @@ export class SemanticRouter {
       case 'list':
         return await this.api.listFiles(params.directory);
       case 'read':
-        const fileResponse = await this.api.getFile(params.path);
-        // Return the raw response - it will be handled by the semantic tools handler
-        return fileResponse;
+        // Default to fragment retrieval unless full file is explicitly requested
+        if (params.returnFullFile) {
+          const fileResponse = await this.api.getFile(params.path);
+          const content = typeof fileResponse === 'string' ? fileResponse : JSON.stringify(fileResponse);
+          const wordCount = content.split(/\s+/).length;
+          
+          // Add warning about file size
+          return {
+            content: fileResponse,
+            metadata: {
+              wordCount,
+              warning: wordCount > 2000 ? 
+                `This file contains ${wordCount} words. Consider using fragment retrieval (remove returnFullFile parameter) to reduce context consumption.` : 
+                null
+            }
+          };
+        } else {
+          // Use fragment retrieval by default
+          const fileResponse = await this.api.getFile(params.path);
+          
+          // Extract content from the response
+          let fileContent: string;
+          let metadata: any = {};
+          
+          if (typeof fileResponse === 'string') {
+            fileContent = fileResponse;
+          } else if (fileResponse && typeof fileResponse === 'object' && 'content' in fileResponse) {
+            // Handle structured response from Obsidian API
+            fileContent = fileResponse.content;
+            metadata = fileResponse;
+            
+            // If it's still not a string (might be an image or binary file)
+            if (typeof fileContent !== 'string') {
+              return fileResponse;
+            }
+          } else {
+            // Handle other non-text files
+            return fileResponse;
+          }
+          
+          // Index the file if not already indexed
+          const docId = `file:${params.path}`;
+          await this.fragmentRetriever.indexDocument(docId, params.path, fileContent);
+          
+          // Retrieve relevant fragments based on query or path
+          const query = params.query || params.path.split('/').pop()?.replace('.md', '') || '';
+          const fragmentResponse = await this.fragmentRetriever.retrieveFragments(query, {
+            strategy: params.strategy || 'auto',
+            maxFragments: params.maxFragments || 5
+          });
+          
+          // Return structured response with fragments
+          return {
+            ...metadata,
+            content: fragmentResponse.result,
+            originalContentLength: fileContent.length,
+            fragmentMetadata: {
+              totalFragments: fragmentResponse.result.length,
+              strategy: params.strategy || 'auto',
+              query: query
+            },
+            workflow: fragmentResponse.workflow,
+            efficiency_hints: fragmentResponse.efficiency_hints
+          };
+        }
+      case 'fragments':
+        // Dedicated fragment search across multiple files
+        // First, index all markdown files if not done
+        if (this.fragmentRetriever.getIndexedDocumentCount() === 0) {
+          await this.indexVaultFiles();
+        }
+        
+        // Search for fragments
+        const fragmentResponse = await this.fragmentRetriever.retrieveFragments(params.query, {
+          strategy: params.strategy || 'auto',
+          maxFragments: params.maxFragments || 5
+        });
+        
+        return fragmentResponse;
       case 'create':
         return await this.api.createFile(params.path, params.content || '');
       case 'update':
@@ -133,6 +212,49 @@ export class SemanticRouter {
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
+  }
+  
+  private async indexVaultFiles(): Promise<void> {
+    // Index all markdown files in the vault
+    const indexDirectory = async (directory?: string) => {
+      try {
+        const files = await this.api.listFiles(directory);
+        
+        for (const file of files) {
+          const filePath = directory ? `${directory}/${file}` : file;
+          
+          if (file.endsWith('/')) {
+            // Recursively index subdirectories
+            await indexDirectory(filePath.slice(0, -1));
+          } else if (file.endsWith('.md')) {
+            try {
+              const fileResponse = await this.api.getFile(filePath);
+              let content: string;
+              
+              // Handle both string and structured responses
+              if (typeof fileResponse === 'string') {
+                content = fileResponse;
+              } else if (fileResponse && typeof fileResponse === 'object' && 'content' in fileResponse) {
+                content = fileResponse.content;
+              } else {
+                continue; // Skip if we can't extract content
+              }
+              
+              const docId = `file:${filePath}`;
+              await this.fragmentRetriever.indexDocument(docId, filePath, content);
+            } catch (e) {
+              // Skip unreadable files
+              console.warn(`Failed to index ${filePath}:`, e);
+            }
+          }
+        }
+      } catch (e) {
+        // Skip unreadable directories
+        console.warn(`Failed to index directory ${directory}:`, e);
+      }
+    };
+    
+    await indexDirectory();
   }
   
   private async executeEditOperation(action: string, params: any): Promise<any> {
