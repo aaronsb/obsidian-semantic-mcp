@@ -68,6 +68,11 @@ export class SemanticChunkIndex {
       expandNeighbors = true 
     } = options;
     
+    // Handle undefined or empty query
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+    
     const queryTerms = this.extractTerms(query);
     const chunkScores = new Map<string, number>();
     

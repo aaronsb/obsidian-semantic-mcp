@@ -43,6 +43,11 @@ export class ProximityFragmentIndex {
   }
   
   searchWithProximity(query: string, maxDistance: number = 50): Fragment[] {
+    // Handle undefined or empty query
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+    
     const queryTokens = this.tokenize(query);
     const fragments: Fragment[] = [];
     
