@@ -62,6 +62,7 @@ This server consolidates traditional MCP tools into an AI-optimized semantic int
 - **State Tracking**: Token-based system prevents invalid operations
 - **Error Recovery**: Smart recovery hints when operations fail
 - **Fuzzy Matching**: Resilient text editing that handles minor variations
+- **Fragment Retrieval**: Automatically returns relevant sections from large files to conserve tokens
 
 ### Why Semantic Operations?
 
@@ -75,7 +76,7 @@ Traditional MCP servers expose many granular tools (20+), which can overwhelm AI
 ### The 5 Semantic Operations
 
 1. **`vault`** - File and folder operations
-   - Actions: `list`, `read`, `create`, `update`, `delete`, `search`
+   - Actions: `list`, `read`, `create`, `update`, `delete`, `search`, `fragments`
    
 2. **`edit`** - Smart content editing
    - Actions: `window` (fuzzy match), `append`, `patch`, `at_line`, `from_buffer`
@@ -182,6 +183,71 @@ Target specific document structures:
 }
 ```
 
+#### Fragment Retrieval for Large Documents
+The system automatically uses intelligent fragment retrieval when reading files, significantly reducing token consumption while maintaining relevance:
+
+```json
+{
+  "operation": "vault",
+  "action": "read",
+  "params": {
+    "path": "large-document.md"
+  }
+}
+```
+
+Returns relevant fragments instead of the entire file:
+```json
+{
+  "result": {
+    "content": [
+      {
+        "id": "file:large-document.md:frag0",
+        "content": "Most relevant section...",
+        "score": 0.95,
+        "lineStart": 145,
+        "lineEnd": 167
+      }
+    ],
+    "fragmentMetadata": {
+      "totalFragments": 5,
+      "strategy": "adaptive",
+      "originalContentLength": 135662
+    }
+  }
+}
+```
+
+**Fragment Search Strategies:**
+- **adaptive** - TF-IDF keyword matching (default for short queries)
+- **proximity** - Finds fragments where query terms appear close together
+- **semantic** - Chunks documents into meaningful sections
+
+You can explicitly search for fragments across your vault:
+```json
+{
+  "operation": "vault",
+  "action": "fragments",
+  "params": {
+    "query": "project roadmap timeline",
+    "maxFragments": 10,
+    "strategy": "proximity"
+  }
+}
+```
+
+To retrieve the full file (when needed), use:
+```json
+{
+  "operation": "vault",
+  "action": "read",
+  "params": {
+    "path": "document.md",
+    "returnFullFile": true
+  }
+}
+```
+
 ### Workflow Examples
 
 #### Daily Note Workflow
@@ -196,6 +262,17 @@ Target specific document structures:
 ### Configuration
 
 The semantic workflow hints are defined in `src/config/workflows.json` and can be customized for your workflow preferences.
+
+#### Fragment Retrieval Configuration
+
+The fragment retrieval system automatically activates when reading files to conserve tokens. You can control this behavior:
+
+- **Default behavior**: Returns up to 5 relevant fragments when reading files
+- **Full file access**: Use `returnFullFile: true` parameter to get complete content
+- **Strategy selection**: The system auto-selects based on query length, or you can specify:
+  - `adaptive` for keyword matching (1-2 word queries)
+  - `proximity` for finding related terms together (3-5 word queries)
+  - `semantic` for conceptual chunking (longer queries)
 
 ### Error Recovery
 
@@ -222,11 +299,27 @@ When operations fail, the semantic interface provides intelligent recovery hints
 
 ## Environment Variables
 
-- `OBSIDIAN_API_KEY` (required) - Your API key from the Local REST API plugin
-- `OBSIDIAN_API_URL` (optional) - API URL (default: https://localhost:27124)
+The server automatically loads environment variables from a `.env` file if present. Variables can be set in order of precedence:
+
+1. Existing environment variables (highest priority)
+2. `.env` file in current working directory
+3. `.env` file in the server directory
+
+Required variables:
+- `OBSIDIAN_API_KEY` - Your API key from the Local REST API plugin
+
+Optional variables:
+- `OBSIDIAN_API_URL` - API URL (default: https://localhost:27124)
   - Supports both HTTP (port 27123) and HTTPS (port 27124)
   - HTTPS uses self-signed certificates which are automatically accepted
-- `OBSIDIAN_VAULT_NAME` (optional) - Vault name for context
+- `OBSIDIAN_VAULT_NAME` - Vault name for context
+
+Example `.env` file:
+```
+OBSIDIAN_API_KEY=your-api-key-here
+OBSIDIAN_API_URL=http://127.0.0.1:27123
+OBSIDIAN_VAULT_NAME=MyVault
+```
 
 ## PATCH Operations
 

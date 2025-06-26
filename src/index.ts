@@ -7,6 +7,27 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { ObsidianAPI } from './utils/obsidian-api.js';
 import { semanticTools } from './tools/semantic-tools.js';
+import * as dotenv from 'dotenv';
+import { existsSync } from 'fs';
+import { resolve } from 'path';
+
+// Load environment variables with proper precedence:
+// 1. Existing environment variables take precedence
+// 2. .env in current working directory (where MCP is invoked)
+// 3. .env in the directory containing this script
+if (!process.env.OBSIDIAN_API_KEY) {
+  // First try .env in current working directory
+  dotenv.config();
+  
+  // If still not found, try .env next to the script
+  if (!process.env.OBSIDIAN_API_KEY) {
+    const scriptDir = new URL('.', import.meta.url).pathname;
+    const scriptEnvPath = resolve(scriptDir, '../.env');
+    if (existsSync(scriptEnvPath)) {
+      dotenv.config({ path: scriptEnvPath });
+    }
+  }
+}
 
 // Get configuration from environment
 const API_KEY = process.env.OBSIDIAN_API_KEY;
@@ -15,6 +36,10 @@ const VAULT_NAME = process.env.OBSIDIAN_VAULT_NAME || 'Obsidian Vault';
 
 if (!API_KEY) {
   console.error('Error: OBSIDIAN_API_KEY environment variable is required');
+  console.error('Searched for .env files in:');
+  console.error(`  1. Current directory: ${process.cwd()}`);
+  console.error(`  2. Script directory: ${resolve(new URL('.', import.meta.url).pathname, '..')}`);
+  console.error('Please ensure a .env file exists with OBSIDIAN_API_KEY defined');
   process.exit(1);
 }
 

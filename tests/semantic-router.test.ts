@@ -24,16 +24,19 @@ describe('SemanticRouter', () => {
       expect(response.context?.current_directory).toBe('/');
     });
     
-    it('should read file and extract metadata', async () => {
+    it('should read file and return fragments', async () => {
       const response = await router.route({
         operation: 'vault',
         action: 'read',
         params: { path: 'test.md' }
       });
       
-      expect(response.result.content).toContain('# Test');
-      expect(response.context?.linked_files).toContain('linked.md');
-      expect(response.context?.tags).toContain('#tag1');
+      // Now returns fragments by default
+      expect(response.result.content).toBeInstanceOf(Array);
+      expect(response.result.content[0].content).toContain('# Test');
+      expect(response.result.tags).toContain('#tag1');
+      expect(response.result.fragmentMetadata).toBeDefined();
+      expect(response.result.fragmentMetadata.totalFragments).toBeGreaterThan(0);
     });
     
     it('should handle file not found gracefully', async () => {

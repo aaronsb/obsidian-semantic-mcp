@@ -1,6 +1,6 @@
 {
   "name": "obsidian-semantic-mcp",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Semantic MCP server for Obsidian - AI-optimized interface with 5 intelligent operations",
   "private": false,
   "type": "module",
@@ -38,6 +38,7 @@
     "@types/sharp": "^0.31.1",
     "@types/turndown": "^5.0.5",
     "axios": "^1.7.9",
+    "dotenv": "^16.5.0",
     "sharp": "^0.34.2",
     "turndown": "^7.2.0",
     "typescript": "^5.3.3"

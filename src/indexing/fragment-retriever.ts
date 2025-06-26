@@ -87,6 +87,11 @@ export class UniversalFragmentRetriever {
   }
   
   private selectOptimalStrategy(query: string): string {
+    // Handle undefined or empty query
+    if (!query || query.trim().length === 0) {
+      return 'adaptive'; // Default to adaptive for empty queries
+    }
+    
     const queryWords = query.split(/\s+/).filter(w => w.length > 0);
     const queryLength = queryWords.length;
     

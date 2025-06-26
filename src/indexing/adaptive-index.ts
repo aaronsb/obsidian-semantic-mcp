@@ -46,6 +46,11 @@ export class AdaptiveTextIndex {
   }
   
   search(query: string, maxFragments: number = 5): Fragment[] {
+    // Handle undefined or empty query
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+    
     const queryTokens = this.tokenize(query);
     const candidateDocs = this.getCandidateDocuments(queryTokens);
     

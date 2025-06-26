@@ -194,8 +194,11 @@ export class SemanticRouter {
           await this.indexVaultFiles();
         }
         
+        // Default query to path if no query provided
+        const fragmentQuery = params.query || params.path || '';
+        
         // Search for fragments
-        const fragmentResponse = await this.fragmentRetriever.retrieveFragments(params.query, {
+        const fragmentResponse = await this.fragmentRetriever.retrieveFragments(fragmentQuery, {
           strategy: params.strategy || 'auto',
           maxFragments: params.maxFragments || 5
         });
