@@ -4,6 +4,10 @@
 
 A semantic, AI-optimized MCP server for Obsidian that consolidates 21+ tools into 5 intelligent operations with contextual workflow hints.
 
+<a href="https://glama.ai/mcp/servers/@aaronsb/obsidian-semantic-mcp">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@aaronsb/obsidian-semantic-mcp/badge" alt="Obsidian Semantic Server MCP server" />
+</a>
+
 ## Prerequisites
 
 - [Obsidian](https://obsidian.md/) installed on your computer
