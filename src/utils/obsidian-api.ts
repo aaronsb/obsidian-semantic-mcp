@@ -91,8 +91,34 @@ export class ObsidianAPI {
   // Vault file operations
   async listFiles(directory?: string) {
     const path = directory ? `/vault/${directory}/` : '/vault/';
-    const response = await this.client.get(path);
-    return response.data.files || [];
+    try {
+      const response = await this.client.get(path);
+      return response.data.files || [];
+    } catch (error: any) {
+      // Check if it's a 404 error
+      if (error.response?.status === 404) {
+        const dirName = directory || 'root';
+        throw new Error(
+          `Directory not found: ${dirName}. ` +
+          `Please check that the directory exists in your vault. ` +
+          `Try 'vault(action="list")' to see available directories, or ` +
+          `'vault(action="list", directory="<parent-directory>")' to browse the parent directory.`
+        );
+      }
+      
+      // Check for connection errors
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error(
+          'Cannot connect to Obsidian. Please ensure:\n' +
+          '1. Obsidian is running\n' +
+          '2. The Local REST API plugin is installed and enabled\n' +
+          '3. The API is accessible at the configured URL'
+        );
+      }
+      
+      // Re-throw other errors with original message
+      throw error;
+    }
   }
 
   async getFile(path: string): Promise<ObsidianFileResponse> {

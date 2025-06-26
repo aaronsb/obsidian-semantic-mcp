@@ -29,6 +29,36 @@
                 ]
               }
             ]
+          },
+          "failure_hints": {
+            "message": "Failed to list directory: {directory}",
+            "suggested_next": [
+              {
+                "condition": "always",
+                "suggestions": [
+                  {
+                    "description": "List root directory",
+                    "command": "vault(action='list')",
+                    "reason": "Start from vault root"
+                  },
+                  {
+                    "description": "Try parent directory",
+                    "command": "vault(action='list', directory='{parent_directory}')",
+                    "reason": "Browse parent folder"
+                  },
+                  {
+                    "description": "Search for files instead",
+                    "command": "vault(action='search', query='{directory}')",
+                    "reason": "Find files by name"
+                  },
+                  {
+                    "description": "Check system info",
+                    "command": "system(action='info')",
+                    "reason": "Verify connection to Obsidian"
+                  }
+                ]
+              }
+            ]
           }
         },
         

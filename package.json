@@ -1,6 +1,6 @@
 {
   "name": "obsidian-semantic-mcp",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Semantic MCP server for Obsidian - AI-optimized interface with 5 intelligent operations",
   "private": false,
   "type": "module",

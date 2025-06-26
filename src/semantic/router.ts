@@ -628,6 +628,15 @@ export class SemanticRouter {
       true // isError
     );
     
+    // Extract parent directory from the directory parameter for suggestions
+    if (operation === 'vault' && action === 'list' && params.directory) {
+      const parts = params.directory.split('/');
+      if (parts.length > 1) {
+        parts.pop();
+        params.parent_directory = parts.join('/') || undefined;
+      }
+    }
+    
     errorResponse.error = {
       code: error.code || 'UNKNOWN_ERROR',
       message: error.message,

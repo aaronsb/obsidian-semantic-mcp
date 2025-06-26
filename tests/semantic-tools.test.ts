@@ -159,7 +159,7 @@ describe('Semantic Tools Integration Tests', () => {
       });
       
       expect(response.efficiency_hints).toBeDefined();
-      expect(response.efficiency_hints?.message).toContain('batch');
+      expect(response.efficiency_hints?.message).toContain('incremental edits');
     });
   });
 });
