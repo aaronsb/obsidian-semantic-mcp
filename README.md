@@ -2,7 +2,7 @@
 
 [![npm version](https://badge.fury.io/js/obsidian-semantic-mcp.svg)](https://www.npmjs.com/package/obsidian-semantic-mcp)
 
-A semantic, AI-optimized MCP server for Obsidian that consolidates 21+ tools into 5 intelligent operations with contextual workflow hints.
+A semantic, AI-optimized MCP server for Obsidian that consolidates 20 tools into 5 intelligent operations with contextual workflow hints.
 
 ## Prerequisites
 
@@ -68,7 +68,7 @@ This server consolidates traditional MCP tools into an AI-optimized semantic int
 
 Traditional MCP servers expose many granular tools (20+), which can overwhelm AI agents and lead to inefficient tool selection. Our semantic approach:
 
-- **Consolidates 21 tools into 5 semantic operations** based on intent
+- **Consolidates 20 tools into 5 semantic operations** based on intent
 - **Provides contextual workflow hints** to guide next actions
 - **Tracks state with tokens** (inspired by Petri nets) to prevent nonsensical suggestions
 - **Offers recovery hints** when operations fail
@@ -89,6 +89,7 @@ Traditional MCP servers expose many granular tools (20+), which can overwhelm AI
    
 5. **`system`** - System operations
    - Actions: `info`, `commands`, `fetch_web`
+   - Note: `fetch_web` fetches and converts web content to markdown (uses only `url` parameter)
 
 ### Example Usage
 
@@ -389,7 +390,7 @@ npm test semantic-tools     # Test integration
 
 ## Known Issues
 
-- **Search functionality**: The `search_vault_simple` tool may hang or timeout due to a [known issue](https://github.com/coddingtonbear/obsidian-local-rest-api/issues/172) in the Obsidian Local REST API plugin. As a workaround, use the file listing and reading tools to navigate your vault.
+- **Search functionality**: The search operation may occasionally timeout on large vaults due to API limitations in the Obsidian Local REST API plugin.
 
 ## Contributing
 

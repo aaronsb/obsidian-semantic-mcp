@@ -1,5 +1,6 @@
 import { ObsidianAPI } from '../utils/obsidian-api.js';
 import { UniversalFragmentRetriever } from '../indexing/fragment-retriever.js';
+import { readFileWithFragments } from '../utils/file-reader.js';
 
 // Shared fragment retriever instance
 const fragmentRetriever = new UniversalFragmentRetriever();
@@ -67,67 +68,48 @@ export const vaultFileTools = [
     },
     handler: async (api: ObsidianAPI, args: any) => {
       try {
-        const file = await api.getFile(args.path);
-        
-        // Handle non-text files (like images)
-        if (typeof file !== 'string') {
-          return {
-            content: [{
-              type: 'text',
-              text: JSON.stringify(file, null, 2)
-            }]
-          };
-        }
-        
-        const fileContent = file as string;
-        const wordCount = fileContent.split(/\s+/).length;
-        
-        // Return full file if requested
-        if (args.returnFullFile) {
-          let responseText = fileContent;
-          
-          // Add warning for large files
-          if (wordCount > 2000) {
-            responseText += `\n\n⚠️ WARNING: This file contains ${wordCount} words. Consider using fragment retrieval (omit returnFullFile) to reduce context consumption.`;
-          }
-          
-          return {
-            content: [{
-              type: 'text',
-              text: responseText
-            }]
-          };
-        }
-        
-        // Use fragment retrieval by default
-        const docId = `file:${args.path}`;
-        await fragmentRetriever.indexDocument(docId, args.path, fileContent);
-        
-        // Use provided query or extract from filename
-        const query = args.query || args.path.split('/').pop()?.replace('.md', '') || '';
-        const fragmentResponse = await fragmentRetriever.retrieveFragments(query, {
-          maxFragments: args.maxFragments || 5
+        // Use shared file reading utility
+        const result = await readFileWithFragments(api, fragmentRetriever, {
+          path: args.path,
+          returnFullFile: args.returnFullFile,
+          query: args.query,
+          strategy: args.strategy,
+          maxFragments: args.maxFragments
         });
         
-        // Format the response
-        const fragments = fragmentResponse.result;
-        let responseText = `📄 **File**: ${args.path}\n`;
-        responseText += `📊 **Stats**: ${wordCount} words total, showing ${fragments.length} most relevant fragments\n\n`;
+        // Format response for MCP
+        let responseText: string;
         
-        if (fragments.length === 0) {
-          responseText += `No relevant fragments found for query: "${query}"\n`;
-          responseText += `💡 **Hint**: Try 'returnFullFile: true' to get the complete file content.`;
-        } else {
-          fragments.forEach((fragment, idx) => {
-            responseText += `### Fragment ${idx + 1} (lines ${fragment.lineStart}-${fragment.lineEnd}, score: ${fragment.score.toFixed(2)})\n\n`;
-            responseText += fragment.content + '\n\n';
-            responseText += '---\n\n';
-          });
+        if (result.content && typeof result.content === 'string') {
+          // Full file response
+          responseText = result.content;
+          if (result.metadata?.warning) {
+            responseText += `\n\n⚠️ ${result.metadata.warning}`;
+          }
+        } else if (result.fragmentMetadata) {
+          // Fragment response
+          const fragments = result.content || [];
+          responseText = `📄 **File**: ${args.path}\n`;
+          responseText += `📊 **Stats**: ${result.originalContentLength} chars total, showing ${fragments.length} fragments\n\n`;
           
-          responseText += `💡 **Hints**:\n`;
-          responseText += `- To see the full file (${wordCount} words), use: 'returnFullFile: true'\n`;
-          responseText += `- To search for specific content, use: 'query: "your search terms"'\n`;
-          responseText += `- To get more fragments, use: 'maxFragments: 10'`;
+          if (fragments.length === 0) {
+            responseText += `No relevant fragments found for query: "${result.fragmentMetadata.query}"\n`;
+            responseText += `💡 **Hint**: Try 'returnFullFile: true' to get the complete file content.`;
+          } else {
+            fragments.forEach((fragment: any, idx: number) => {
+              responseText += `### Fragment ${idx + 1} (lines ${fragment.lineStart}-${fragment.lineEnd}, score: ${fragment.score.toFixed(2)})\n\n`;
+              responseText += fragment.content + '\n\n';
+              responseText += '---\n\n';
+            });
+            
+            responseText += `💡 **Hints**:\n`;
+            responseText += `- To see the full file, use: 'returnFullFile: true'\n`;
+            responseText += `- To search for specific content, use: 'query: "your search terms"'\n`;
+            responseText += `- To get more fragments, use: 'maxFragments: 10'`;
+          }
+        } else {
+          // Non-text file or special response
+          responseText = JSON.stringify(result, null, 2);
         }
         
         return {

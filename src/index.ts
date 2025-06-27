@@ -8,8 +8,9 @@ import {
 import { ObsidianAPI } from './utils/obsidian-api.js';
 import { semanticTools } from './tools/semantic-tools.js';
 import * as dotenv from 'dotenv';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import { fileURLToPath } from 'url';
 
 // Load environment variables with proper precedence:
 // 1. Existing environment variables take precedence
@@ -50,11 +51,23 @@ const obsidianAPI = new ObsidianAPI({
   vaultName: VAULT_NAME
 });
 
+// Read version from package.json
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const packageJsonPath = resolve(__dirname, '../package.json');
+let version = '1.0.0'; // fallback version
+
+try {
+  const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+  version = packageJson.version;
+} catch (error) {
+  console.error('Warning: Could not read version from package.json, using fallback');
+}
+
 // Create MCP server
 const server = new Server(
   {
     name: 'obsidian-semantic-mcp',
-    version: '1.5.0',
+    version: version,
   },
   {
     capabilities: {

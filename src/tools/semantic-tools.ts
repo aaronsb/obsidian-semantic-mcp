@@ -145,6 +145,10 @@ function getParametersForOperation(operation: string): Record<string, any> {
         type: 'boolean',
         description: 'Return full file instead of fragments (WARNING: large files can consume significant context)'
       },
+      includeContent: {
+        type: 'boolean',
+        description: 'Include file content in search results (slower but more thorough)'
+      },
       ...contentParam
     },
     edit: {
@@ -210,11 +214,7 @@ function getParametersForOperation(operation: string): Record<string, any> {
     system: {
       url: {
         type: 'string',
-        description: 'URL for web fetch operations'
-      },
-      prompt: {
-        type: 'string',
-        description: 'Prompt for web content analysis'
+        description: 'URL to fetch and convert to markdown'
       }
     }
   };
