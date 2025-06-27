@@ -139,7 +139,7 @@ The system tracks context tokens to provide relevant suggestions:
 ### Advanced Features
 
 #### Content Buffering
-When edits fail (e.g., text not found), content is automatically buffered and can be recovered:
+The `window` edit action automatically buffers your new content before attempting the edit. If the edit fails or you want to refine it, you can retrieve from buffer:
 
 ```json
 {

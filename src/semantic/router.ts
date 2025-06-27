@@ -121,7 +121,9 @@ export class SemanticRouter {
   private async executeVaultOperation(action: string, params: any): Promise<any> {
     switch (action) {
       case 'list':
-        return await this.api.listFiles(params.directory);
+        // Translate "/" to undefined for root directory
+        const directory = params.directory === '/' ? undefined : params.directory;
+        return await this.api.listFiles(directory);
       case 'read':
         return await readFileWithFragments(this.api, this.fragmentRetriever, {
           path: params.path,
@@ -440,7 +442,23 @@ export class SemanticRouter {
         };
         
       case 'active':
-        return await this.api.getActiveFile();
+        // Add timeout to prevent hanging when no file is active
+        try {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout: No active file in Obsidian. Please open a file first.')), 5000)
+          );
+          const result = await Promise.race([
+            this.api.getActiveFile(),
+            timeoutPromise
+          ]);
+          return result;
+        } catch (error: any) {
+          if (error.message.includes('Timeout')) {
+            throw error;
+          }
+          // Re-throw original error if not timeout
+          throw error;
+        }
         
       case 'open_in_obsidian':
         return await this.api.openFile(params.path);
@@ -721,6 +739,15 @@ export class SemanticRouter {
         description: 'Refine last search',
         command: `vault(action='search', query='${lastSearch} AND ...')`,
         reason: 'Narrow down results'
+      });
+    }
+    
+    // Always include a default suggestion if no context-specific ones
+    if (suggestions.length === 0) {
+      suggestions.push({
+        description: 'Use workflow hints from other operations',
+        command: 'vault(action="list") or vault(action="read", path="...") etc.',
+        reason: 'Each operation provides contextual workflow suggestions'
       });
     }
     
