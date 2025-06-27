@@ -14,6 +14,7 @@ import { StateTokenManager } from './state-tokens.js';
 import { limitResponse } from '../utils/response-limiter.js';
 import { isImageFile } from '../types/obsidian.js';
 import { UniversalFragmentRetriever } from '../indexing/fragment-retriever.js';
+import { readFileWithFragments } from '../utils/file-reader.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -120,86 +121,17 @@ export class SemanticRouter {
   private async executeVaultOperation(action: string, params: any): Promise<any> {
     switch (action) {
       case 'list':
-        return await this.api.listFiles(params.directory);
+        // Translate "/" to undefined for root directory
+        const directory = params.directory === '/' ? undefined : params.directory;
+        return await this.api.listFiles(directory);
       case 'read':
-        // Default to fragment retrieval unless full file is explicitly requested
-        if (params.returnFullFile) {
-          const fileResponse = await this.api.getFile(params.path);
-          
-          // Check if it's an image file
-          if (isImageFile(fileResponse)) {
-            // Return the image object directly
-            return fileResponse;
-          }
-          
-          const content = typeof fileResponse === 'string' ? fileResponse : JSON.stringify(fileResponse);
-          const wordCount = content.split(/\s+/).length;
-          
-          // Add warning about file size
-          return {
-            content: fileResponse,
-            metadata: {
-              wordCount,
-              warning: wordCount > 2000 ? 
-                `This file contains ${wordCount} words. Consider using fragment retrieval (remove returnFullFile parameter) to reduce context consumption.` : 
-                null
-            }
-          };
-        } else {
-          // Use fragment retrieval by default
-          const fileResponse = await this.api.getFile(params.path);
-          
-          // Check if it's an image file
-          if (isImageFile(fileResponse)) {
-            // Return the image object directly
-            return fileResponse;
-          }
-          
-          // Extract content from the response
-          let fileContent: string;
-          let metadata: any = {};
-          
-          if (typeof fileResponse === 'string') {
-            fileContent = fileResponse;
-          } else if (fileResponse && typeof fileResponse === 'object' && 'content' in fileResponse) {
-            // Handle structured response from Obsidian API
-            fileContent = fileResponse.content;
-            metadata = fileResponse;
-            
-            // If it's still not a string (might be an image or binary file)
-            if (typeof fileContent !== 'string') {
-              return fileResponse;
-            }
-          } else {
-            // Handle other non-text files
-            return fileResponse;
-          }
-          
-          // Index the file if not already indexed
-          const docId = `file:${params.path}`;
-          await this.fragmentRetriever.indexDocument(docId, params.path, fileContent);
-          
-          // Retrieve relevant fragments based on query or path
-          const query = params.query || params.path.split('/').pop()?.replace('.md', '') || '';
-          const fragmentResponse = await this.fragmentRetriever.retrieveFragments(query, {
-            strategy: params.strategy || 'auto',
-            maxFragments: params.maxFragments || 5
-          });
-          
-          // Return structured response with fragments
-          return {
-            ...metadata,
-            content: fragmentResponse.result,
-            originalContentLength: fileContent.length,
-            fragmentMetadata: {
-              totalFragments: fragmentResponse.result.length,
-              strategy: params.strategy || 'auto',
-              query: query
-            },
-            workflow: fragmentResponse.workflow,
-            efficiency_hints: fragmentResponse.efficiency_hints
-          };
-        }
+        return await readFileWithFragments(this.api, this.fragmentRetriever, {
+          path: params.path,
+          returnFullFile: params.returnFullFile,
+          query: params.query,
+          strategy: params.strategy,
+          maxFragments: params.maxFragments
+        });
       case 'fragments':
         // Dedicated fragment search across multiple files
         // First, index all markdown files if not done
@@ -224,10 +156,122 @@ export class SemanticRouter {
       case 'delete':
         return await this.api.deleteFile(params.path);
       case 'search':
-        return await this.api.searchPaginated(params.query, params.page, params.pageSize);
+        // Try API search first with timeout
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000);
+          
+          const results = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
+          clearTimeout(timeoutId);
+          
+          if (results && results.results) {
+            return results;
+          }
+        } catch (apiError) {
+          console.error('API search failed, using fallback:', apiError);
+        }
+        
+        // Fallback: file-based search
+        return await this.performFileBasedSearch(params.query, params.page || 1, params.pageSize || 10, params.includeContent);
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
+  }
+  
+  private async performFileBasedSearch(query: string, page: number, pageSize: number, includeContent: boolean = false): Promise<any> {
+    const lowerQuery = query.toLowerCase();
+    const allResults: any[] = [];
+    
+    const searchDirectory = async (directory?: string) => {
+      try {
+        const files = await this.api.listFiles(directory);
+        
+        for (const file of files) {
+          const filePath = directory ? `${directory}/${file}` : file;
+          
+          if (file.endsWith('/')) {
+            // Recursively search subdirectories
+            await searchDirectory(filePath.slice(0, -1));
+          } else if (file.endsWith('.md')) {
+            try {
+              // Check filename first (faster)
+              if (file.toLowerCase().includes(lowerQuery)) {
+                allResults.push({
+                  path: filePath,
+                  title: file.replace('.md', ''),
+                  score: 2 // Higher score for filename matches
+                });
+              } else if (includeContent) {
+                // Only read file content if specifically requested
+                const fileResponse = await this.api.getFile(filePath);
+                let content: string;
+                
+                if (typeof fileResponse === 'string') {
+                  content = fileResponse;
+                } else if (fileResponse && typeof fileResponse === 'object' && 'content' in fileResponse) {
+                  content = fileResponse.content;
+                } else {
+                  continue;
+                }
+                
+                if (content.toLowerCase().includes(lowerQuery)) {
+                  const matches = (content.toLowerCase().split(lowerQuery).length - 1);
+                  allResults.push({
+                    path: filePath,
+                    title: file.replace('.md', ''),
+                    context: this.extractContext(content, query, 150),
+                    score: matches
+                  });
+                }
+              }
+            } catch (e) {
+              // Skip unreadable files
+              console.warn(`Failed to search file ${filePath}:`, e);
+            }
+          }
+        }
+      } catch (e) {
+        // Skip unreadable directories
+        console.warn(`Failed to search directory ${directory}:`, e);
+      }
+    };
+    
+    await searchDirectory();
+    
+    // Sort by score
+    allResults.sort((a, b) => (b.score || 0) - (a.score || 0));
+    
+    // Apply pagination
+    const totalResults = allResults.length;
+    const totalPages = Math.ceil(totalResults / pageSize);
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    
+    return {
+      query,
+      page,
+      pageSize,
+      totalResults,
+      totalPages,
+      results: allResults.slice(startIndex, endIndex),
+      method: 'fallback'
+    };
+  }
+  
+  private extractContext(content: string, query: string, maxLength: number = 150): string {
+    const lowerContent = content.toLowerCase();
+    const index = lowerContent.indexOf(query.toLowerCase());
+    
+    if (index === -1) return '';
+    
+    const start = Math.max(0, index - maxLength / 2);
+    const end = Math.min(content.length, index + query.length + maxLength / 2);
+    
+    let context = content.substring(start, end);
+    if (start > 0) context = '...' + context;
+    if (end < content.length) context = context + '...';
+    
+    return context.trim();
   }
   
   private async indexVaultFiles(): Promise<void> {
@@ -398,7 +442,23 @@ export class SemanticRouter {
         };
         
       case 'active':
-        return await this.api.getActiveFile();
+        // Add timeout to prevent hanging when no file is active
+        try {
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Timeout: No active file in Obsidian. Please open a file first.')), 5000)
+          );
+          const result = await Promise.race([
+            this.api.getActiveFile(),
+            timeoutPromise
+          ]);
+          return result;
+        } catch (error: any) {
+          if (error.message.includes('Timeout')) {
+            throw error;
+          }
+          // Re-throw original error if not timeout
+          throw error;
+        }
         
       case 'open_in_obsidian':
         return await this.api.openFile(params.path);
@@ -679,6 +739,15 @@ export class SemanticRouter {
         description: 'Refine last search',
         command: `vault(action='search', query='${lastSearch} AND ...')`,
         reason: 'Narrow down results'
+      });
+    }
+    
+    // Always include a default suggestion if no context-specific ones
+    if (suggestions.length === 0) {
+      suggestions.push({
+        description: 'Use workflow hints from other operations',
+        command: 'vault(action="list") or vault(action="read", path="...") etc.',
+        reason: 'Each operation provides contextual workflow suggestions'
       });
     }
     

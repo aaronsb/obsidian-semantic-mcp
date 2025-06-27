@@ -2,7 +2,7 @@
 
 [![npm version](https://badge.fury.io/js/obsidian-semantic-mcp.svg)](https://www.npmjs.com/package/obsidian-semantic-mcp)
 
-A semantic, AI-optimized MCP server for Obsidian that consolidates 21+ tools into 5 intelligent operations with contextual workflow hints.
+A semantic, AI-optimized MCP server for Obsidian that consolidates 20 tools into 5 intelligent operations with contextual workflow hints.
 
 <a href="https://glama.ai/mcp/servers/@aaronsb/obsidian-semantic-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@aaronsb/obsidian-semantic-mcp/badge" alt="Obsidian Semantic Server MCP server" />
@@ -72,7 +72,7 @@ This server consolidates traditional MCP tools into an AI-optimized semantic int
 
 Traditional MCP servers expose many granular tools (20+), which can overwhelm AI agents and lead to inefficient tool selection. Our semantic approach:
 
-- **Consolidates 21 tools into 5 semantic operations** based on intent
+- **Consolidates 20 tools into 5 semantic operations** based on intent
 - **Provides contextual workflow hints** to guide next actions
 - **Tracks state with tokens** (inspired by Petri nets) to prevent nonsensical suggestions
 - **Offers recovery hints** when operations fail
@@ -93,6 +93,7 @@ Traditional MCP servers expose many granular tools (20+), which can overwhelm AI
    
 5. **`system`** - System operations
    - Actions: `info`, `commands`, `fetch_web`
+   - Note: `fetch_web` fetches and converts web content to markdown (uses only `url` parameter)
 
 ### Example Usage
 
@@ -142,7 +143,7 @@ The system tracks context tokens to provide relevant suggestions:
 ### Advanced Features
 
 #### Content Buffering
-When edits fail (e.g., text not found), content is automatically buffered and can be recovered:
+The `window` edit action automatically buffers your new content before attempting the edit. If the edit fails or you want to refine it, you can retrieve from buffer:
 
 ```json
 {
@@ -379,7 +380,7 @@ The semantic system consists of:
 - **Semantic Router** (`src/semantic/router.ts`) - Routes operations to handlers
 - **State Tokens** (`src/semantic/state-tokens.ts`) - Tracks context state
 - **Workflow Config** (`src/config/workflows.json`) - Defines hints and suggestions
-- **Classic Tools** (`src/tools/`) - Original tool implementations
+- **Core Utilities** (`src/utils/`) - Shared functionality like file reading and fuzzy matching
 
 ### Testing
 
@@ -393,7 +394,7 @@ npm test semantic-tools     # Test integration
 
 ## Known Issues
 
-- **Search functionality**: The `search_vault_simple` tool may hang or timeout due to a [known issue](https://github.com/coddingtonbear/obsidian-local-rest-api/issues/172) in the Obsidian Local REST API plugin. As a workaround, use the file listing and reading tools to navigate your vault.
+- **Search functionality**: The search operation may occasionally timeout on large vaults due to API limitations in the Obsidian Local REST API plugin.
 
 ## Contributing
 

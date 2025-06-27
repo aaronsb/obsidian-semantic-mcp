@@ -77,7 +77,7 @@ const createSemanticTool = (operation: string) => ({
 function getOperationDescription(operation: string): string {
   const descriptions: Record<string, string> = {
     vault: 'File and folder operations - list, read, create, update, delete, search',
-    edit: 'Smart editing operations - window, append, patch, at_line, from_buffer',
+    edit: 'Smart editing operations - window (auto-buffers content), append, patch, at_line, from_buffer',
     view: 'Content viewing and navigation - file, window, active, open_in_obsidian',
     workflow: 'Workflow guidance and suggestions based on current context',
     system: 'System operations - info, commands, fetch_web'
@@ -90,7 +90,7 @@ function getActionsForOperation(operation: string): string[] {
     vault: ['list', 'read', 'create', 'update', 'delete', 'search', 'fragments'],
     edit: ['window', 'append', 'patch', 'at_line', 'from_buffer'],
     view: ['file', 'window', 'active', 'open_in_obsidian'],
-    workflow: ['suggest', 'analyze'],
+    workflow: ['suggest'],
     system: ['info', 'commands', 'fetch_web']
   };
   return actions[operation] || [];
@@ -145,6 +145,10 @@ function getParametersForOperation(operation: string): Record<string, any> {
         type: 'boolean',
         description: 'Return full file instead of fragments (WARNING: large files can consume significant context)'
       },
+      includeContent: {
+        type: 'boolean',
+        description: 'Include file content in search results (slower but more thorough)'
+      },
       ...contentParam
     },
     edit: {
@@ -174,15 +178,17 @@ function getParametersForOperation(operation: string): Record<string, any> {
       },
       operation: {
         type: 'string',
-        description: 'Patch operation type'
+        enum: ['append', 'prepend', 'replace'],
+        description: 'Patch operation: append (add after), prepend (add before), or replace'
       },
       targetType: {
         type: 'string',
-        description: 'Target type for patch operations'
+        enum: ['heading', 'block', 'frontmatter'],
+        description: 'What to target: heading (by path like "H1::H2"), block (by ID), or frontmatter (field)'
       },
       target: {
         type: 'string',
-        description: 'Target identifier for patch operations'
+        description: 'Target identifier - e.g., "Daily Notes::Today" for heading, block ID, or frontmatter field name'
       }
     },
     view: {
@@ -210,11 +216,7 @@ function getParametersForOperation(operation: string): Record<string, any> {
     system: {
       url: {
         type: 'string',
-        description: 'URL for web fetch operations'
-      },
-      prompt: {
-        type: 'string',
-        description: 'Prompt for web content analysis'
+        description: 'URL to fetch and convert to markdown'
       }
     }
   };

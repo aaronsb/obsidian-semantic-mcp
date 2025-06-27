@@ -60,6 +60,7 @@ graph TD
     read -->|Success| edit_file[Edit this file]
     read -->|Success| open_obsidian[Open in Obsidian]
     read -->|Large File| use_fragments[Switch to fragments]
+    read -->|Image File| display_image[Display as image]
     
     %% Create flow
     create -->|Success| add_content[Add content]
