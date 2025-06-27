@@ -231,14 +231,42 @@ export class SemanticRouter {
     }
   }
   
+  private getFileType(filename: string): string {
+    const ext = filename.toLowerCase().split('.').pop() || '';
+    
+    // Image formats
+    if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'].includes(ext)) {
+      return 'image';
+    }
+    
+    // Video formats
+    if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].includes(ext)) {
+      return 'video';
+    }
+    
+    // Audio formats
+    if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma'].includes(ext)) {
+      return 'audio';
+    }
+    
+    // Document formats
+    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+      return 'document';
+    }
+    
+    // Text/code formats
+    if (['md', 'txt', 'json', 'yaml', 'yml', 'js', 'ts', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'xml'].includes(ext)) {
+      return 'text';
+    }
+    
+    return 'binary';
+  }
+  
   private getSearchWorkflowHints(results: any[]): any {
-    const hasEditableFiles = results.some(r => 
-      r.path.endsWith('.md') || 
-      r.path.endsWith('.txt') || 
-      r.path.endsWith('.json') || 
-      r.path.endsWith('.yaml') || 
-      r.path.endsWith('.yml')
-    );
+    const hasEditableFiles = results.some(r => {
+      const type = r.type || this.getFileType(r.path);
+      return type === 'text';
+    });
     
     const availableActions = [
       "view:file",
@@ -272,16 +300,18 @@ export class SemanticRouter {
           if (file.endsWith('/')) {
             // Recursively search subdirectories
             await searchDirectory(filePath.slice(0, -1));
-          } else if (file.endsWith('.md')) {
+          } else {
             try {
-              // Check filename first (faster)
+              // Check filename first (faster) for all files
               if (file.toLowerCase().includes(lowerQuery)) {
+                const isMarkdown = file.endsWith('.md');
                 allResults.push({
                   path: filePath,
-                  title: file.replace('.md', ''),
-                  score: 2 // Higher score for filename matches
+                  title: isMarkdown ? file.replace('.md', '') : file,
+                  score: 2, // Higher score for filename matches
+                  type: this.getFileType(file)
                 });
-              } else if (includeContent) {
+              } else if (includeContent && file.endsWith('.md')) {
                 // Only read file content if specifically requested
                 const fileResponse = await this.api.getFile(filePath);
                 let content: string;
@@ -300,7 +330,8 @@ export class SemanticRouter {
                     path: filePath,
                     title: file.replace('.md', ''),
                     context: this.extractContext(content, query, 150),
-                    score: matches
+                    score: matches,
+                    type: 'text'
                   });
                 }
               }
