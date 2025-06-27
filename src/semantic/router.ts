@@ -217,14 +217,45 @@ export class SemanticRouter {
           
           return {
             ...searchResults,
-            results: enhancedResults
+            results: enhancedResults,
+            workflow: this.getSearchWorkflowHints(enhancedResults)
           };
         }
         
-        return searchResults;
+        return {
+          ...searchResults,
+          workflow: this.getSearchWorkflowHints(searchResults.results)
+        };
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
+  }
+  
+  private getSearchWorkflowHints(results: any[]): any {
+    const hasEditableFiles = results.some(r => 
+      r.path.endsWith('.md') || 
+      r.path.endsWith('.txt') || 
+      r.path.endsWith('.json') || 
+      r.path.endsWith('.yaml') || 
+      r.path.endsWith('.yml')
+    );
+    
+    const availableActions = [
+      "view:file",
+      "view:window", 
+      "view:open_in_obsidian"
+    ];
+    
+    if (hasEditableFiles) {
+      availableActions.push("edit:window");
+    }
+    
+    return {
+      available_actions: availableActions,
+      note: hasEditableFiles ? 
+        "Use with paths from results. Edit only for text files." : 
+        "Use with paths from results."
+    };
   }
   
   private async performFileBasedSearch(query: string, page: number, pageSize: number, includeContent: boolean = false): Promise<any> {
@@ -296,14 +327,17 @@ export class SemanticRouter {
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     
+    const paginatedResults = allResults.slice(startIndex, endIndex);
+    
     return {
       query,
       page,
       pageSize,
       totalResults,
       totalPages,
-      results: allResults.slice(startIndex, endIndex),
-      method: 'fallback'
+      results: paginatedResults,
+      method: 'fallback',
+      workflow: this.getSearchWorkflowHints(paginatedResults)
     };
   }
   
