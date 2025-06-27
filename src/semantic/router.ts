@@ -157,22 +157,71 @@ export class SemanticRouter {
         return await this.api.deleteFile(params.path);
       case 'search':
         // Try API search first with timeout
+        let searchResults;
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           
-          const results = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
+          searchResults = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
           clearTimeout(timeoutId);
           
-          if (results && results.results) {
-            return results;
+          if (!searchResults || !searchResults.results) {
+            throw new Error('No results from API');
           }
         } catch (apiError) {
           console.error('API search failed, using fallback:', apiError);
+          // Fallback: file-based search
+          return await this.performFileBasedSearch(params.query, params.page || 1, params.pageSize || 10, params.includeContent);
         }
         
-        // Fallback: file-based search
-        return await this.performFileBasedSearch(params.query, params.page || 1, params.pageSize || 10, params.includeContent);
+        // Enhance results with snippets by default (unless explicitly disabled)
+        if (params.includeContent !== false && searchResults.results && searchResults.results.length > 0) {
+          // Process each result to add content snippet
+          const enhancedResults = await Promise.all(
+            searchResults.results.map(async (result: any) => {
+              try {
+                // Skip non-markdown files
+                if (!result.path.endsWith('.md')) {
+                  return result;
+                }
+                
+                // Get the top fragment for this file using the search query
+                const fragmentResult = await readFileWithFragments(this.api, this.fragmentRetriever, {
+                  path: result.path,
+                  query: params.query,
+                  maxFragments: 1  // Only get the top fragment
+                });
+                
+                // Extract the first fragment if available
+                if (fragmentResult.content && Array.isArray(fragmentResult.content) && fragmentResult.content.length > 0) {
+                  const topFragment = fragmentResult.content[0];
+                  return {
+                    ...result,
+                    snippet: {
+                      content: topFragment.content,
+                      lineStart: topFragment.lineStart,
+                      lineEnd: topFragment.lineEnd,
+                      score: topFragment.score
+                    }
+                  };
+                }
+                
+                return result;
+              } catch (error) {
+                // If we can't get a snippet, return original result
+                console.warn(`Failed to get snippet for ${result.path}:`, error);
+                return result;
+              }
+            })
+          );
+          
+          return {
+            ...searchResults,
+            results: enhancedResults
+          };
+        }
+        
+        return searchResults;
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
