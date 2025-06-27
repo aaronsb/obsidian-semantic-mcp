@@ -156,23 +156,53 @@ export class SemanticRouter {
       case 'delete':
         return await this.api.deleteFile(params.path);
       case 'search':
-        // Try API search first with timeout
-        let searchResults;
+        // Try both API search and filename search, then combine results
+        let apiResults: any[] = [];
+        let fallbackResults: any[] = [];
+        
+        // Try API search first
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           
-          searchResults = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
+          const searchResults = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
           clearTimeout(timeoutId);
           
-          if (!searchResults || !searchResults.results) {
-            throw new Error('No results from API');
+          if (searchResults && searchResults.results) {
+            apiResults = searchResults.results;
           }
         } catch (apiError) {
-          console.error('API search failed, using fallback:', apiError);
-          // Fallback: file-based search
-          return await this.performFileBasedSearch(params.query, params.page || 1, params.pageSize || 10, params.includeContent);
+          console.warn('API search failed:', apiError);
         }
+        
+        // Always also try filename-based search to find media files
+        try {
+          const fallbackSearch = await this.performFileBasedSearch(params.query, 1, 50, false); // No content search, just filenames
+          if (fallbackSearch && fallbackSearch.results) {
+            fallbackResults = fallbackSearch.results;
+          }
+        } catch (fallbackError) {
+          console.warn('Fallback search failed:', fallbackError);
+        }
+        
+        // Combine and deduplicate results
+        const combinedResults = this.combineSearchResults(apiResults, fallbackResults);
+        const totalResults = combinedResults.length;
+        const totalPages = Math.ceil(totalResults / (params.pageSize || 10));
+        const startIndex = ((params.page || 1) - 1) * (params.pageSize || 10);
+        const endIndex = startIndex + (params.pageSize || 10);
+        const paginatedResults = combinedResults.slice(startIndex, endIndex);
+        
+        const searchResults = {
+          query: params.query,
+          page: params.page || 1,
+          pageSize: params.pageSize || 10,
+          totalResults,
+          totalPages,
+          results: paginatedResults,
+          method: apiResults.length > 0 && fallbackResults.length > 0 ? 'combined' : 
+                  apiResults.length > 0 ? 'api' : 'fallback'
+        };
         
         // Enhance results with snippets by default (unless explicitly disabled)
         if (params.includeContent !== false && searchResults.results && searchResults.results.length > 0) {
@@ -229,6 +259,45 @@ export class SemanticRouter {
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
+  }
+  
+  private combineSearchResults(apiResults: any[], fallbackResults: any[]): any[] {
+    const combined = [...apiResults];
+    const existingPaths = new Set(apiResults.map(r => r.path));
+    
+    // Add fallback results that aren't already in API results
+    for (const fallbackResult of fallbackResults) {
+      if (!existingPaths.has(fallbackResult.path)) {
+        combined.push(fallbackResult);
+      }
+    }
+    
+    // Sort by score (API results have negative scores, higher is better)
+    // Fallback results have positive scores, higher is better
+    return combined.sort((a, b) => {
+      const scoreA = a.score || 0;
+      const scoreB = b.score || 0;
+      
+      // If both are negative (API results), more negative is better
+      if (scoreA < 0 && scoreB < 0) {
+        return scoreA - scoreB; // More negative first
+      }
+      
+      // If both are positive (fallback results), higher is better
+      if (scoreA > 0 && scoreB > 0) {
+        return scoreB - scoreA; // Higher first
+      }
+      
+      // Mixed: prioritize API results (negative scores) over fallback (positive scores)
+      if (scoreA < 0 && scoreB > 0) {
+        return -1; // API result first
+      }
+      if (scoreA > 0 && scoreB < 0) {
+        return 1; // API result first
+      }
+      
+      return 0;
+    });
   }
   
   private getFileType(filename: string): string {
