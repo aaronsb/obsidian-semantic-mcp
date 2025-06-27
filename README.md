@@ -376,7 +376,7 @@ The semantic system consists of:
 - **Semantic Router** (`src/semantic/router.ts`) - Routes operations to handlers
 - **State Tokens** (`src/semantic/state-tokens.ts`) - Tracks context state
 - **Workflow Config** (`src/config/workflows.json`) - Defines hints and suggestions
-- **Classic Tools** (`src/tools/`) - Original tool implementations
+- **Core Utilities** (`src/utils/`) - Shared functionality like file reading and fuzzy matching
 
 ### Testing
 
