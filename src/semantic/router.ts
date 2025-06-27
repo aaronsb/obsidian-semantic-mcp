@@ -156,26 +156,203 @@ export class SemanticRouter {
       case 'delete':
         return await this.api.deleteFile(params.path);
       case 'search':
-        // Try API search first with timeout
+        // Try both API search and filename search, then combine results
+        let apiResults: any[] = [];
+        let fallbackResults: any[] = [];
+        
+        // Try API search first
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 5000);
           
-          const results = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
+          const searchResults = await this.api.searchPaginated(params.query, params.page || 1, params.pageSize || 10);
           clearTimeout(timeoutId);
           
-          if (results && results.results) {
-            return results;
+          if (searchResults && searchResults.results) {
+            apiResults = searchResults.results;
           }
         } catch (apiError) {
-          console.error('API search failed, using fallback:', apiError);
+          console.warn('API search failed:', apiError);
         }
         
-        // Fallback: file-based search
-        return await this.performFileBasedSearch(params.query, params.page || 1, params.pageSize || 10, params.includeContent);
+        // Always also try filename-based search to find media files
+        try {
+          const fallbackSearch = await this.performFileBasedSearch(params.query, 1, 50, false); // No content search, just filenames
+          if (fallbackSearch && fallbackSearch.results) {
+            fallbackResults = fallbackSearch.results;
+          }
+        } catch (fallbackError) {
+          console.warn('Fallback search failed:', fallbackError);
+        }
+        
+        // Combine and deduplicate results
+        const combinedResults = this.combineSearchResults(apiResults, fallbackResults);
+        const totalResults = combinedResults.length;
+        const totalPages = Math.ceil(totalResults / (params.pageSize || 10));
+        const startIndex = ((params.page || 1) - 1) * (params.pageSize || 10);
+        const endIndex = startIndex + (params.pageSize || 10);
+        const paginatedResults = combinedResults.slice(startIndex, endIndex);
+        
+        const searchResults = {
+          query: params.query,
+          page: params.page || 1,
+          pageSize: params.pageSize || 10,
+          totalResults,
+          totalPages,
+          results: paginatedResults,
+          method: apiResults.length > 0 && fallbackResults.length > 0 ? 'combined' : 
+                  apiResults.length > 0 ? 'api' : 'fallback'
+        };
+        
+        // Enhance results with snippets by default (unless explicitly disabled)
+        if (params.includeContent !== false && searchResults.results && searchResults.results.length > 0) {
+          // Process each result to add content snippet
+          const enhancedResults = await Promise.all(
+            searchResults.results.map(async (result: any) => {
+              try {
+                // Skip non-markdown files
+                if (!result.path.endsWith('.md')) {
+                  return result;
+                }
+                
+                // Get the top fragment for this file using the search query
+                const fragmentResult = await readFileWithFragments(this.api, this.fragmentRetriever, {
+                  path: result.path,
+                  query: params.query,
+                  maxFragments: 1  // Only get the top fragment
+                });
+                
+                // Extract the first fragment if available
+                if (fragmentResult.content && Array.isArray(fragmentResult.content) && fragmentResult.content.length > 0) {
+                  const topFragment = fragmentResult.content[0];
+                  return {
+                    ...result,
+                    snippet: {
+                      content: topFragment.content,
+                      lineStart: topFragment.lineStart,
+                      lineEnd: topFragment.lineEnd,
+                      score: topFragment.score
+                    }
+                  };
+                }
+                
+                return result;
+              } catch (error) {
+                // If we can't get a snippet, return original result
+                console.warn(`Failed to get snippet for ${result.path}:`, error);
+                return result;
+              }
+            })
+          );
+          
+          return {
+            ...searchResults,
+            results: enhancedResults,
+            workflow: this.getSearchWorkflowHints(enhancedResults)
+          };
+        }
+        
+        return {
+          ...searchResults,
+          workflow: this.getSearchWorkflowHints(searchResults.results)
+        };
       default:
         throw new Error(`Unknown vault action: ${action}`);
     }
+  }
+  
+  private combineSearchResults(apiResults: any[], fallbackResults: any[]): any[] {
+    const combined = [...apiResults];
+    const existingPaths = new Set(apiResults.map(r => r.path));
+    
+    // Add fallback results that aren't already in API results
+    for (const fallbackResult of fallbackResults) {
+      if (!existingPaths.has(fallbackResult.path)) {
+        combined.push(fallbackResult);
+      }
+    }
+    
+    // Sort by score (API results have negative scores, higher is better)
+    // Fallback results have positive scores, higher is better
+    return combined.sort((a, b) => {
+      const scoreA = a.score || 0;
+      const scoreB = b.score || 0;
+      
+      // If both are negative (API results), more negative is better
+      if (scoreA < 0 && scoreB < 0) {
+        return scoreA - scoreB; // More negative first
+      }
+      
+      // If both are positive (fallback results), higher is better
+      if (scoreA > 0 && scoreB > 0) {
+        return scoreB - scoreA; // Higher first
+      }
+      
+      // Mixed: prioritize API results (negative scores) over fallback (positive scores)
+      if (scoreA < 0 && scoreB > 0) {
+        return -1; // API result first
+      }
+      if (scoreA > 0 && scoreB < 0) {
+        return 1; // API result first
+      }
+      
+      return 0;
+    });
+  }
+  
+  private getFileType(filename: string): string {
+    const ext = filename.toLowerCase().split('.').pop() || '';
+    
+    // Image formats
+    if (['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'].includes(ext)) {
+      return 'image';
+    }
+    
+    // Video formats
+    if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].includes(ext)) {
+      return 'video';
+    }
+    
+    // Audio formats
+    if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac', 'wma'].includes(ext)) {
+      return 'audio';
+    }
+    
+    // Document formats
+    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(ext)) {
+      return 'document';
+    }
+    
+    // Text/code formats
+    if (['md', 'txt', 'json', 'yaml', 'yml', 'js', 'ts', 'py', 'java', 'cpp', 'c', 'h', 'css', 'html', 'xml'].includes(ext)) {
+      return 'text';
+    }
+    
+    return 'binary';
+  }
+  
+  private getSearchWorkflowHints(results: any[]): any {
+    const hasEditableFiles = results.some(r => {
+      const type = r.type || this.getFileType(r.path);
+      return type === 'text';
+    });
+    
+    const availableActions = [
+      "view:file",
+      "view:window", 
+      "view:open_in_obsidian"
+    ];
+    
+    if (hasEditableFiles) {
+      availableActions.push("edit:window");
+    }
+    
+    return {
+      available_actions: availableActions,
+      note: hasEditableFiles ? 
+        "Use with paths from results. Edit only for text files." : 
+        "Use with paths from results."
+    };
   }
   
   private async performFileBasedSearch(query: string, page: number, pageSize: number, includeContent: boolean = false): Promise<any> {
@@ -192,16 +369,18 @@ export class SemanticRouter {
           if (file.endsWith('/')) {
             // Recursively search subdirectories
             await searchDirectory(filePath.slice(0, -1));
-          } else if (file.endsWith('.md')) {
+          } else {
             try {
-              // Check filename first (faster)
+              // Check filename first (faster) for all files
               if (file.toLowerCase().includes(lowerQuery)) {
+                const isMarkdown = file.endsWith('.md');
                 allResults.push({
                   path: filePath,
-                  title: file.replace('.md', ''),
-                  score: 2 // Higher score for filename matches
+                  title: isMarkdown ? file.replace('.md', '') : file,
+                  score: 2, // Higher score for filename matches
+                  type: this.getFileType(file)
                 });
-              } else if (includeContent) {
+              } else if (includeContent && file.endsWith('.md')) {
                 // Only read file content if specifically requested
                 const fileResponse = await this.api.getFile(filePath);
                 let content: string;
@@ -220,7 +399,8 @@ export class SemanticRouter {
                     path: filePath,
                     title: file.replace('.md', ''),
                     context: this.extractContext(content, query, 150),
-                    score: matches
+                    score: matches,
+                    type: 'text'
                   });
                 }
               }
@@ -247,14 +427,17 @@ export class SemanticRouter {
     const startIndex = (page - 1) * pageSize;
     const endIndex = startIndex + pageSize;
     
+    const paginatedResults = allResults.slice(startIndex, endIndex);
+    
     return {
       query,
       page,
       pageSize,
       totalResults,
       totalPages,
-      results: allResults.slice(startIndex, endIndex),
-      method: 'fallback'
+      results: paginatedResults,
+      method: 'fallback',
+      workflow: this.getSearchWorkflowHints(paginatedResults)
     };
   }
   
