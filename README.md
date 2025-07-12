@@ -1,8 +1,26 @@
 # Obsidian Semantic MCP Server
 
+> 🎉 **Exciting News!** We've taken everything we learned from this project and created something even better! Check out the new [**Obsidian MCP Plugin**](https://github.com/aaronsb/obsidian-mcp-plugin) - a native Obsidian plugin that runs directly inside your vault with improved performance, simplified setup, and enhanced features. We encourage you to try it out!
+
 [![npm version](https://badge.fury.io/js/obsidian-semantic-mcp.svg)](https://www.npmjs.com/package/obsidian-semantic-mcp)
 
 A semantic, AI-optimized MCP server for Obsidian that consolidates 20 tools into 5 intelligent operations with contextual workflow hints.
+
+---
+
+## 🚀 Try Our New Native Plugin!
+
+This MCP server taught us valuable lessons about AI integration with Obsidian. We've applied these insights to create the **[Obsidian MCP Plugin](https://github.com/aaronsb/obsidian-mcp-plugin)**, which offers:
+
+- **Native Integration**: Runs directly inside Obsidian (no external dependencies!)
+- **Better Performance**: Direct vault access without REST API overhead
+- **Easier Setup**: Install like any Obsidian plugin - no API keys or external servers
+- **Enhanced Features**: Full access to Obsidian's internal APIs and search capabilities
+- **Improved Reliability**: No more connection issues or timeouts
+
+👉 **[Get the Obsidian MCP Plugin](https://github.com/aaronsb/obsidian-mcp-plugin)**
+
+---
 
 <a href="https://glama.ai/mcp/servers/@aaronsb/obsidian-semantic-mcp">
   <img width="380" height="200" src="https://glama.ai/mcp/servers/@aaronsb/obsidian-semantic-mcp/badge" alt="Obsidian Semantic Server MCP server" />
